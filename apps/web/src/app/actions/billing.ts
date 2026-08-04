@@ -1,90 +1,89 @@
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
+import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { revalidatePath } from 'next/cache';
+import * as admin from 'firebase-admin';
 
 // --- Buscar faturas pendentes e pagas ---
 export async function getInvoices() {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('invoices')
-    .select(`
-      id, invoice_number, amount, due_date, status, paid_at,
-      customers ( name, document )
-    `)
-    .order('due_date', { ascending: false });
+  const { tenantId } = await requireUserAndTenant();
+  
+  const snapshot = await adminDb.collection('invoices')
+    .where('tenant_id', '==', tenantId)
+    .orderBy('due_date', 'desc')
+    .get();
 
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  const invoices = await Promise.all(snapshot.docs.map(async doc => {
+    const data = doc.data();
+    let customers = {};
+    if (data.customer_id) {
+      const custDoc = await adminDb.collection('customers').doc(data.customer_id).get();
+      if (custDoc.exists) customers = custDoc.data() || {};
+    }
+    return { id: doc.id, ...data, customers };
+  }));
+
+  return invoices;
 }
 
 // --- Buscar pedidos concluídos que ainda não foram faturados ---
 export async function getUnbilledOrders() {
-  const supabase = createServerClient();
+  const { tenantId } = await requireUserAndTenant();
   
-  // Um pedido é faturável se estiver concluído e não tiver fatura gerada
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      id, order_number, price, scheduled_date,
-      customers ( id, name, document ),
-      invoices ( id )
-    `)
-    .eq('status', 'CONCLUIDO')
-    .not('price', 'is', null);
+  const snapshot = await adminDb.collection('orders')
+    .where('tenant_id', '==', tenantId)
+    .where('status', '==', 'CONCLUIDO')
+    .get();
 
-  if (error) throw new Error(error.message);
+  const unbilled = [];
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    if (data.price !== null && data.price !== undefined) {
+      // Check if invoice exists for this order
+      const invSnap = await adminDb.collection('invoices').where('order_id', '==', doc.id).get();
+      if (invSnap.empty) {
+        let customers = {};
+        if (data.customer_id) {
+          const custDoc = await adminDb.collection('customers').doc(data.customer_id).get();
+          if (custDoc.exists) customers = { id: custDoc.id, ...custDoc.data() };
+        }
+        unbilled.push({ id: doc.id, ...data, customers, invoices: [] });
+      }
+    }
+  }
 
-  // Filtra apenas os que têm a array de invoices vazia
-  return (data ?? []).filter((o: any) => o.invoices.length === 0);
+  return unbilled;
 }
 
 // --- Gerar nova fatura ---
 export async function createInvoice(orderId: string, customerId: string, amount: number, dueDate: string) {
-  const supabase = createServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Não autenticado');
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, tenant_id')
-    .eq('auth_user_id', session.user.id)
-    .single();
-
-  if (!profile) throw new Error('Perfil não encontrado');
+  const { tenantId, profileId } = await requireUserAndTenant();
 
   const invoiceNumber = `FAT-${Date.now().toString().slice(-6)}`;
 
-  const { error } = await supabase
-    .from('invoices')
-    .insert({
-      tenant_id: profile.tenant_id,
-      order_id: orderId,
-      customer_id: customerId,
-      invoice_number: invoiceNumber,
-      amount,
-      due_date: dueDate,
-      created_by: profile.id,
-    });
-
-  if (error) throw new Error(error.message);
+  await adminDb.collection('invoices').doc().set({
+    tenant_id: tenantId,
+    order_id: orderId,
+    customer_id: customerId,
+    invoice_number: invoiceNumber,
+    amount,
+    due_date: dueDate,
+    status: 'PENDENTE',
+    created_by: profileId,
+    created_at: admin.firestore.FieldValue.serverTimestamp(),
+  });
   
   revalidatePath('/financeiro');
 }
 
 // --- Marcar como pago ---
 export async function markInvoiceAsPaid(invoiceId: string) {
-  const supabase = createServerClient();
+  await requireUserAndTenant();
   
-  const { error } = await supabase
-    .from('invoices')
-    .update({
-      status: 'PAGO',
-      paid_at: new Date().toISOString()
-    })
-    .eq('id', invoiceId);
-
-  if (error) throw new Error(error.message);
+  await adminDb.collection('invoices').doc(invoiceId).update({
+    status: 'PAGO',
+    paid_at: new Date().toISOString()
+  });
   
   revalidatePath('/financeiro');
 }

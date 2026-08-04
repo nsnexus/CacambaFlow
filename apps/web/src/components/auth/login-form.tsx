@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientClient } from '@/lib/supabase/client';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase/client';
+import { setSessionCookie } from '@/app/actions/auth';
 
 export function LoginForm() {
   const router = useRouter();
@@ -16,13 +18,17 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
 
-    const supabase = createClientClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (authError) {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await userCredential.user.getIdToken();
+      
+      const sessionResult = await setSessionCookie(idToken);
+      if (!sessionResult.success) {
+        setError('Falha ao iniciar sessão no servidor.');
+        setLoading(false);
+        return;
+      }
+    } catch (authError: any) {
       setError('E-mail ou senha inválidos. Verifique suas credenciais.');
       setLoading(false);
       return;

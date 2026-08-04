@@ -1,9 +1,10 @@
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
+import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import * as admin from 'firebase-admin';
 
 const customerSchema = z.object({
   person_type: z.enum(['PF', 'PJ']),
@@ -16,7 +17,7 @@ const customerSchema = z.object({
 });
 
 const addressSchema = z.object({
-  customer_id: z.string().uuid(),
+  customer_id: z.string(),
   name: z.string().min(1, 'Nome da obra obrigatório'),
   postal_code: z.string().optional(),
   street: z.string().min(1, 'Logradouro obrigatório'),
@@ -38,38 +39,41 @@ export type CustomerFormState = {
 };
 
 export async function getCustomers() {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('customers')
-    .select('id, person_type, name, document, phone, whatsapp, email, status, created_at')
-    .eq('status', 'ATIVO')
-    .order('name', { ascending: true });
+  const { tenantId } = await requireUserAndTenant();
+  
+  const snapshot = await adminDb.collection('customers')
+    .where('tenant_id', '==', tenantId)
+    .where('status', '==', 'ATIVO')
+    .orderBy('name', 'asc')
+    .get();
 
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
 export async function getCustomerWithAddresses(customerId: string) {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('customers')
-    .select(`
-      id, person_type, name, document, phone, whatsapp, email, notes, status,
-      addresses ( id, name, street, number, city, state, postal_code, access_notes, status )
-    `)
-    .eq('id', customerId)
-    .single();
+  const { tenantId } = await requireUserAndTenant();
 
-  if (error) throw new Error(error.message);
-  return data;
+  const doc = await adminDb.collection('customers').doc(customerId).get();
+  if (!doc.exists) throw new Error('Cliente não encontrado');
+  
+  const customerData = doc.data() as any;
+  if (customerData.tenant_id !== tenantId) throw new Error('Sem permissão');
+
+  const addressesSnap = await adminDb.collection('customers').doc(customerId).collection('addresses')
+    .where('status', '==', 'ATIVO')
+    .get();
+
+  return {
+    id: doc.id,
+    ...customerData,
+    addresses: addressesSnap.docs.map(a => ({ id: a.id, ...a.data() }))
+  };
 }
 
 export async function createCustomer(
   prevState: CustomerFormState,
   formData: FormData
 ): Promise<CustomerFormState> {
-  const supabase = createServerClient();
-
   const rawData = {
     person_type: formData.get('person_type') as 'PF' | 'PJ',
     name: formData.get('name') as string,
@@ -85,24 +89,25 @@ export async function createCustomer(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect('/login');
+  let sessionData;
+  try {
+    sessionData = await requireUserAndTenant();
+  } catch (e) {
+    redirect('/login');
+  }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('tenant_id')
-    .eq('auth_user_id', session.user.id)
-    .single();
-
-  if (!profile) return { message: 'Perfil não encontrado.' };
-
-  const { error } = await supabase.from('customers').insert({
-    tenant_id: profile.tenant_id,
-    ...parsed.data,
-    email: parsed.data.email || null,
-  });
-
-  if (error) return { message: `Erro ao criar cliente: ${error.message}` };
+  try {
+    const docRef = adminDb.collection('customers').doc();
+    await docRef.set({
+      tenant_id: sessionData.tenantId,
+      ...parsed.data,
+      email: parsed.data.email || null,
+      status: 'ATIVO',
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error: any) {
+    return { message: `Erro ao criar cliente: ${error.message}` };
+  }
 
   revalidatePath('/clientes');
   redirect('/clientes');
@@ -112,8 +117,6 @@ export async function createAddress(
   prevState: CustomerFormState,
   formData: FormData
 ): Promise<CustomerFormState> {
-  const supabase = createServerClient();
-
   const rawData = {
     customer_id: formData.get('customer_id') as string,
     name: formData.get('name') as string,
@@ -136,25 +139,28 @@ export async function createAddress(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect('/login');
+  let sessionData;
+  try {
+    sessionData = await requireUserAndTenant();
+  } catch (e) {
+    redirect('/login');
+  }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('tenant_id')
-    .eq('auth_user_id', session.user.id)
-    .single();
+  try {
+    const customerId = parsed.data.customer_id;
+    const { customer_id, ...addressData } = parsed.data;
 
-  if (!profile) return { message: 'Perfil não encontrado.' };
+    const docRef = adminDb.collection('customers').doc(customerId).collection('addresses').doc();
+    await docRef.set({
+      tenant_id: sessionData.tenantId,
+      ...addressData,
+      status: 'ATIVO',
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error: any) {
+    return { message: `Erro ao criar endereço: ${error.message}` };
+  }
 
-  const { error } = await supabase.from('addresses').insert({
-    tenant_id: profile.tenant_id,
-    ...parsed.data,
-  });
-
-  if (error) return { message: `Erro ao criar endereço: ${error.message}` };
-
-  const customerId = parsed.data.customer_id;
-  revalidatePath(`/clientes/${customerId}`);
-  redirect(`/clientes/${customerId}`);
+  revalidatePath(`/clientes/${parsed.data.customer_id}`);
+  redirect(`/clientes/${parsed.data.customer_id}`);
 }

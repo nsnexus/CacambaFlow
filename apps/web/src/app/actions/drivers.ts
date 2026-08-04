@@ -1,9 +1,10 @@
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
+import { adminAuth, adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import * as admin from 'firebase-admin';
 
 // --- Schema de validação ---
 const driverSchema = z.object({
@@ -24,18 +25,31 @@ export type DriverFormState = {
 
 // --- Listar motoristas ---
 export async function getDrivers() {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('drivers')
-    .select(`
-      id, license_number, license_category, license_expires_at,
-      tracking_enabled, status, created_at,
-      profiles ( name, email, phone )
-    `)
-    .order('created_at', { ascending: false });
+  const { tenantId } = await requireUserAndTenant();
+  
+  const snapshot = await adminDb.collection('drivers')
+    .where('tenant_id', '==', tenantId)
+    .orderBy('created_at', 'desc')
+    .get();
 
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  const drivers = [];
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    let profileData = {};
+    if (data.profile_id) {
+      const profileDoc = await adminDb.collection('profiles').doc(data.profile_id).get();
+      if (profileDoc.exists) {
+        profileData = profileDoc.data() || {};
+      }
+    }
+    drivers.push({
+      id: doc.id,
+      ...data,
+      profiles: profileData
+    });
+  }
+
+  return drivers;
 }
 
 // --- Criar motorista ---
@@ -43,8 +57,6 @@ export async function createDriver(
   prevState: DriverFormState,
   formData: FormData
 ): Promise<DriverFormState> {
-  const supabase = createServerClient();
-
   const rawData = {
     name: formData.get('name') as string,
     email: formData.get('email') as string,
@@ -60,55 +72,57 @@ export async function createDriver(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  // 1. Obter tenant_id do usuário autenticado
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect('/login');
+  let sessionData;
+  try {
+    sessionData = await requireUserAndTenant();
+  } catch (e) {
+    redirect('/login');
+  }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('tenant_id')
-    .eq('auth_user_id', session.user.id)
-    .single();
-
-  if (!profile) return { message: 'Perfil não encontrado.' };
-
-  // 2. Criar usuário no Supabase Auth (senha temporária)
+  // 1. Criar usuário no Firebase Auth
   const tempPassword = Math.random().toString(36).slice(-8) + 'A1!';
-  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-    email: parsed.data.email,
-    password: tempPassword,
-    email_confirm: true,
-  });
+  let authUser;
+  try {
+    authUser = await adminAuth.createUser({
+      email: parsed.data.email,
+      password: tempPassword,
+      displayName: parsed.data.name,
+    });
+  } catch (error: any) {
+    return { message: `Erro ao criar acesso: ${error.message}` };
+  }
 
-  if (authError) return { message: `Erro ao criar acesso: ${authError.message}` };
-
-  // 3. Criar profile
-  const { data: newProfile, error: profileError } = await supabase
-    .from('profiles')
-    .insert({
-      tenant_id: profile.tenant_id,
-      auth_user_id: authUser.user.id,
+  // 2. Criar Profile
+  try {
+    await adminDb.collection('profiles').doc(authUser.uid).set({
+      tenant_id: sessionData.tenantId,
+      auth_user_id: authUser.uid,
       name: parsed.data.name,
       email: parsed.data.email,
       phone: parsed.data.phone || null,
       role: 'MOTORISTA',
-    })
-    .select('id')
-    .single();
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error: any) {
+    return { message: `Erro ao criar perfil: ${error.message}` };
+  }
 
-  if (profileError) return { message: `Erro ao criar perfil: ${profileError.message}` };
-
-  // 4. Criar driver
-  const { error: driverError } = await supabase.from('drivers').insert({
-    tenant_id: profile.tenant_id,
-    profile_id: newProfile.id,
-    license_number: parsed.data.license_number,
-    license_category: parsed.data.license_category,
-    license_expires_at: parsed.data.license_expires_at,
-    tracking_enabled: parsed.data.tracking_enabled,
-  });
-
-  if (driverError) return { message: `Erro ao criar motorista: ${driverError.message}` };
+  // 3. Criar Driver
+  try {
+    const driverRef = adminDb.collection('drivers').doc();
+    await driverRef.set({
+      tenant_id: sessionData.tenantId,
+      profile_id: authUser.uid,
+      license_number: parsed.data.license_number,
+      license_category: parsed.data.license_category,
+      license_expires_at: parsed.data.license_expires_at,
+      tracking_enabled: parsed.data.tracking_enabled,
+      status: 'ATIVO',
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error: any) {
+    return { message: `Erro ao criar motorista: ${error.message}` };
+  }
 
   revalidatePath('/motoristas');
   redirect('/motoristas');
@@ -116,12 +130,11 @@ export async function createDriver(
 
 // --- Atualizar status do motorista ---
 export async function updateDriverStatus(driverId: string, status: 'ATIVO' | 'INATIVO') {
-  const supabase = createServerClient();
-  const { error } = await supabase
-    .from('drivers')
-    .update({ status })
-    .eq('id', driverId);
-
-  if (error) throw new Error(error.message);
+  await requireUserAndTenant();
+  
+  await adminDb.collection('drivers').doc(driverId).update({
+    status
+  });
+  
   revalidatePath('/motoristas');
 }

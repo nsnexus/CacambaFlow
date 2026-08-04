@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // As evidências ficam em /evidences/{tenantId}/{orderId}/{jobId}/{filename}
+    match /evidences/{tenantId}/{allPaths=**} {
+      
+      // Qualquer um autenticado pode ler (geralmente gerentes e o próprio app)
+      allow read: if isAuthenticated();
+      
+      // Apenas autenticado pode subir evidências, idealmente checando se o mimeType é imagem
+      allow write: if isAuthenticated() 
+                   && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

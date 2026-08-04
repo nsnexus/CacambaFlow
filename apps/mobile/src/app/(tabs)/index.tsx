@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { auth, db } from '../../lib/firebase';
+import { collectionGroup, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
 import { theme } from '../../constants/theme';
 import type { JobStatus } from '@cacambaflow/types';
 
@@ -23,37 +24,69 @@ export default function HomeScreen() {
 
   async function fetchJobs() {
     try {
-      // 1. Pegar perfil logado para achar driver_id correspondente
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+      const user = auth.currentUser;
+      if (!user) return;
 
-      const { data: profile } = await supabase.from('profiles').select('id').eq('auth_user_id', userData.user.id).single();
-      if (!profile) return;
+      const profileDoc = await getDoc(doc(db, 'profiles', user.uid));
+      if (!profileDoc.exists()) return;
+      const profile = profileDoc.data();
 
-      const { data: driver } = await supabase.from('drivers').select('id').eq('profile_id', profile.id).single();
-      if (!driver) {
+      // Find driver associated with this profile
+      const driversQuery = query(collectionGroup(db, 'drivers'), where('profile_id', '==', user.uid));
+      const driversSnap = await getDocs(driversQuery);
+      if (driversSnap.empty) {
         Alert.alert('Atenção', 'Seu usuário não está vinculado a um perfil de motorista.');
         return;
       }
+      const driverId = driversSnap.docs[0].id;
 
-      // 2. Buscar serviços do dia atribuídos a ele
       const today = new Date().toISOString().split('T')[0];
       
-      const { data, error } = await supabase
-        .from('jobs')
-        .select(`
-          id, job_number, job_type, status, scheduled_date,
-          orders (
-            customers ( name ),
-            addresses ( street, number, district, city )
-          )
-        `)
-        .eq('assigned_driver_id', driver.id)
-        .eq('scheduled_date', today)
-        .order('sequence_number', { ascending: true });
+      const jobsQuery = query(
+        collectionGroup(db, 'jobs'),
+        where('assigned_driver_id', '==', driverId),
+        where('scheduled_date', '==', today),
+        orderBy('sequence_number', 'asc')
+      );
+      
+      const snapshot = await getDocs(jobsQuery);
+      
+      const jobsList = await Promise.all(snapshot.docs.map(async jobDoc => {
+        const data = jobDoc.data();
+        let orders = { customers: { name: '' }, addresses: { street: '', number: '', district: '', city: '' } };
+        
+        if (data.order_id) {
+          const orderSnap = await getDoc(doc(db, 'orders', data.order_id));
+          if (orderSnap.exists()) {
+            const o = orderSnap.data();
+            if (o.customer_id) {
+              const custDoc = await getDoc(doc(db, 'customers', o.customer_id));
+              if (custDoc.exists()) {
+                 orders.customers.name = custDoc.data().name;
+                 
+                 if (o.address_id) {
+                   const addrDoc = await getDoc(doc(db, `customers/${o.customer_id}/addresses`, o.address_id));
+                   if (addrDoc.exists()) {
+                     const addr = addrDoc.data();
+                     orders.addresses = { street: addr.street, number: addr.number, district: addr.district, city: addr.city };
+                   }
+                 }
+              }
+            }
+          }
+        }
+        
+        return {
+          id: jobDoc.id,
+          job_number: data.job_number,
+          job_type: data.job_type,
+          status: data.status,
+          scheduled_date: data.scheduled_date,
+          orders
+        } as JobCardData;
+      }));
 
-      if (error) throw error;
-      setJobs(data as any);
+      setJobs(jobsList);
     } catch (error: any) {
       Alert.alert('Erro ao carregar rota', error.message);
     } finally {

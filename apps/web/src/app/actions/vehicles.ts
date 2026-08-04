@@ -1,9 +1,10 @@
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
+import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import * as admin from 'firebase-admin';
 
 const vehicleSchema = z.object({
   plate: z.string().min(7, 'Placa inválida').max(8),
@@ -22,22 +23,20 @@ export type VehicleFormState = {
 };
 
 export async function getVehicles() {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('vehicles')
-    .select('id, plate, brand, model, color, year, vehicle_type, capacity, status, created_at')
-    .order('plate', { ascending: true });
+  const { tenantId } = await requireUserAndTenant();
+  
+  const snapshot = await adminDb.collection('vehicles')
+    .where('tenant_id', '==', tenantId)
+    .orderBy('plate', 'asc')
+    .get();
 
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
 export async function createVehicle(
   prevState: VehicleFormState,
   formData: FormData
 ): Promise<VehicleFormState> {
-  const supabase = createServerClient();
-
   const rawData = {
     plate: (formData.get('plate') as string)?.toUpperCase().replace(/[^A-Z0-9]/g, ''),
     brand: formData.get('brand') as string,
@@ -53,24 +52,32 @@ export async function createVehicle(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect('/login');
+  let sessionData;
+  try {
+    sessionData = await requireUserAndTenant();
+  } catch (e) {
+    redirect('/login');
+  }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('tenant_id')
-    .eq('auth_user_id', session.user.id)
-    .single();
+  // Verifica se a placa já existe para este tenant
+  const existingSnap = await adminDb.collection('vehicles')
+    .where('tenant_id', '==', sessionData.tenantId)
+    .where('plate', '==', parsed.data.plate)
+    .get();
+    
+  if (!existingSnap.empty) {
+    return { message: 'Esta placa já está cadastrada.' };
+  }
 
-  if (!profile) return { message: 'Perfil não encontrado.' };
-
-  const { error } = await supabase.from('vehicles').insert({
-    tenant_id: profile.tenant_id,
-    ...parsed.data,
-  });
-
-  if (error) {
-    if (error.code === '23505') return { message: 'Esta placa já está cadastrada.' };
+  try {
+    const docRef = adminDb.collection('vehicles').doc();
+    await docRef.set({
+      tenant_id: sessionData.tenantId,
+      ...parsed.data,
+      status: 'ATIVO',
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error: any) {
     return { message: `Erro ao criar veículo: ${error.message}` };
   }
 
@@ -79,12 +86,11 @@ export async function createVehicle(
 }
 
 export async function updateVehicleStatus(vehicleId: string, status: 'ATIVO' | 'MANUTENCAO' | 'INATIVO') {
-  const supabase = createServerClient();
-  const { error } = await supabase
-    .from('vehicles')
-    .update({ status })
-    .eq('id', vehicleId);
-
-  if (error) throw new Error(error.message);
+  await requireUserAndTenant();
+  
+  await adminDb.collection('vehicles').doc(vehicleId).update({
+    status
+  });
+  
   revalidatePath('/veiculos');
 }

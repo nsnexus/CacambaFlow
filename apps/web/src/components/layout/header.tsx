@@ -1,14 +1,15 @@
 'use client';
 
-import { createClientClient } from '@/lib/supabase/client';
+import { auth } from '@/lib/firebase/client';
+import { clearSessionCookie } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
 
 export function Header() {
   const router = useRouter();
 
   async function handleLogout() {
-    const supabase = createClientClient();
-    await supabase.auth.signOut();
+    await auth.signOut();
+    await clearSessionCookie();
     router.push('/login');
     router.refresh();
   }

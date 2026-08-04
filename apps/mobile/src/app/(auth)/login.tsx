@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { auth } from '../../lib/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { theme } from '../../constants/theme';
 
 export default function LoginScreen() {
@@ -15,12 +16,9 @@ export default function LoginScreen() {
     }
     
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
       Alert.alert('Erro no Login', 'Verifique suas credenciais. ' + error.message);
     }
     setLoading(false);

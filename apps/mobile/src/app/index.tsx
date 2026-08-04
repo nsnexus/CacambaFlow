@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { auth } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'expo-router';
 import { theme } from '../constants/theme';
 
@@ -8,14 +9,14 @@ export default function InitialScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    // Verifica a sessão atual ao iniciar o app
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
         router.replace('/(tabs)');
       } else {
         router.replace('/(auth)/login');
       }
     });
+    return () => unsubscribe();
   }, []);
 
   return (

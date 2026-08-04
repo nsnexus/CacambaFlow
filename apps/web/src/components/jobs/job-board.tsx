@@ -32,7 +32,9 @@ export function JobBoard({ initialJobs, drivers, vehicles }: JobBoardProps) {
     const driverId = formData.get('driver_id') as string;
     const vehicleId = formData.get('vehicle_id') as string;
     
-    await dispatchJob(assigningJob, driverId, vehicleId);
+    const job = jobs.find(j => j.id === assigningJob);
+    if (!job?.order_id) return;
+    await dispatchJob(job.order_id, assigningJob, driverId, vehicleId);
     
     // Atualiza otimista
     setJobs(jobs.map(j => 
@@ -44,7 +46,9 @@ export function JobBoard({ initialJobs, drivers, vehicles }: JobBoardProps) {
   }
 
   async function handleUnassign(jobId: string) {
-    await unassignJob(jobId);
+    const job = jobs.find(j => j.id === jobId);
+    if (!job?.order_id) return;
+    await unassignJob(job.order_id, jobId);
     setJobs(jobs.map(j => 
       j.id === jobId 
         ? { ...j, status: 'PENDENTE', drivers: null, vehicles: null }

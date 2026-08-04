@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
-import { createServerClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
+import { adminAuth } from '@/lib/firebase/server';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 
@@ -8,10 +9,15 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const sessionCookie = cookies().get('session')?.value;
+  
+  if (!sessionCookie) {
+    redirect('/login');
+  }
 
-  if (!session) {
+  try {
+    await adminAuth.verifySessionCookie(sessionCookie, true);
+  } catch (error) {
     redirect('/login');
   }
 

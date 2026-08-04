@@ -1,78 +1,110 @@
 'use server';
 
-import { createServerClient } from '@/lib/supabase/server';
+import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { revalidatePath } from 'next/cache';
-import { JobStatus } from '@cacambaflow/types';
 
-// --- Obter lista de atendimentos do dia para o Kanban ---
 export async function getJobsForDispatch(dateStr: string) {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('jobs')
-    .select(`
-      id, job_number, job_type, status, priority, scheduled_date, sequence_number,
-      expected_asset_type_id, expected_asset_id, assigned_driver_id, assigned_vehicle_id,
-      orders ( 
-        customers ( name ),
-        addresses ( street, number, district, city )
-      ),
-      asset_types ( name ),
-      assets ( identifier ),
-      drivers ( profiles ( name ) ),
-      vehicles ( plate )
-    `)
-    .eq('scheduled_date', dateStr)
-    .order('priority', { ascending: false })
-    .order('sequence_number', { ascending: true });
+  const { tenantId } = await requireUserAndTenant();
+  
+  // Usando Collection Group Query para buscar todos os jobs de todos os orders
+  const snapshot = await adminDb.collectionGroup('jobs')
+    .where('tenant_id', '==', tenantId)
+    .where('scheduled_date', '==', dateStr)
+    .orderBy('priority', 'desc')
+    .orderBy('sequence_number', 'asc')
+    .get();
 
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  const jobs = await Promise.all(snapshot.docs.map(async doc => {
+    const data = doc.data();
+    
+    // Pegar order correspondente
+    let orderData = {};
+    if (data.order_id) {
+      const orderDoc = await adminDb.collection('orders').doc(data.order_id).get();
+      if (orderDoc.exists) {
+        const o = orderDoc.data() || {};
+        
+        let customerData = {};
+        if (o.customer_id) {
+          const custDoc = await adminDb.collection('customers').doc(o.customer_id).get();
+          if (custDoc.exists) customerData = custDoc.data() || {};
+        }
+
+        let addressData = {};
+        if (o.customer_id && o.address_id) {
+          const addrDoc = await adminDb.collection('customers').doc(o.customer_id).collection('addresses').doc(o.address_id).get();
+          if (addrDoc.exists) addressData = addrDoc.data() || {};
+        }
+        
+        orderData = { ...o, customers: customerData, addresses: addressData };
+      }
+    }
+
+    let drivers = {};
+    if (data.assigned_driver_id) {
+      const drvDoc = await adminDb.collection('drivers').doc(data.assigned_driver_id).get();
+      if (drvDoc.exists) drivers = drvDoc.data() || {};
+    }
+
+    let vehicles = {};
+    if (data.assigned_vehicle_id) {
+      const vhcDoc = await adminDb.collection('vehicles').doc(data.assigned_vehicle_id).get();
+      if (vhcDoc.exists) vehicles = vhcDoc.data() || {};
+    }
+
+    return {
+      id: doc.id,
+      ...data,
+      orders: orderData,
+      drivers,
+      vehicles
+    };
+  }));
+
+  return jobs;
 }
 
-// --- Atribuir motorista e veículo ao atendimento ---
-export async function dispatchJob(jobId: string, driverId: string, vehicleId: string) {
-  const supabase = createServerClient();
-  const { error } = await supabase
-    .from('jobs')
-    .update({
+export async function dispatchJob(orderId: string, jobId: string, driverId: string, vehicleId: string) {
+  await requireUserAndTenant();
+  
+  const jobRef = adminDb.collection('orders').doc(orderId).collection('jobs').doc(jobId);
+  const doc = await jobRef.get();
+  
+  if (doc.exists && doc.data()?.status === 'PENDENTE') {
+    await jobRef.update({
       assigned_driver_id: driverId,
       assigned_vehicle_id: vehicleId,
       status: 'ATRIBUIDO',
       published_at: new Date().toISOString(),
-    })
-    .eq('id', jobId)
-    .eq('status', 'PENDENTE'); // Só atribui se ainda estiver pendente
-
-  if (error) throw new Error(error.message);
+    });
+  }
+  
   revalidatePath('/atendimentos');
 }
 
-// --- Reverter atribuição (voltar para pendente) ---
-export async function unassignJob(jobId: string) {
-  const supabase = createServerClient();
-  const { error } = await supabase
-    .from('jobs')
-    .update({
+export async function unassignJob(orderId: string, jobId: string) {
+  await requireUserAndTenant();
+  
+  const jobRef = adminDb.collection('orders').doc(orderId).collection('jobs').doc(jobId);
+  const doc = await jobRef.get();
+  
+  if (doc.exists && doc.data()?.status === 'ATRIBUIDO') {
+    await jobRef.update({
       assigned_driver_id: null,
       assigned_vehicle_id: null,
       status: 'PENDENTE',
       published_at: null,
-    })
-    .eq('id', jobId)
-    .in('status', ['ATRIBUIDO']); // Só permite reverter se o motorista ainda não aceitou/iniciou rota
-
-  if (error) throw new Error(error.message);
+    });
+  }
+  
   revalidatePath('/atendimentos');
 }
 
-// --- Cancelar atendimento ---
-export async function cancelJob(jobId: string) {
-  const supabase = createServerClient();
-  const { error } = await supabase
-    .from('jobs')
-    .update({ status: 'CANCELADO' })
-    .eq('id', jobId);
-
-  if (error) throw new Error(error.message);
+export async function cancelJob(orderId: string, jobId: string) {
+  await requireUserAndTenant();
+  
+  const jobRef = adminDb.collection('orders').doc(orderId).collection('jobs').doc(jobId);
+  await jobRef.update({ status: 'CANCELADO' });
+  
   revalidatePath('/atendimentos');
 }
