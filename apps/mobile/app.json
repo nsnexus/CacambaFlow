@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "CaçambaFlow",
+    "slug": "cacambaflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "cacambaflow",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F1117"
+    },
+    "android": {
+      "package": "com.cacambaflow.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F1117"
+      },
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "CaçambaFlow precisa da sua localização para rastrear atendimentos durante a jornada de trabalho.",
+          "locationWhenInUsePermission": "CaçambaFlow precisa da sua localização para registrar chegada e conclusão dos atendimentos.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "CaçambaFlow usa a câmera para tirar fotos de evidências e ler QR Codes das caçambas."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
