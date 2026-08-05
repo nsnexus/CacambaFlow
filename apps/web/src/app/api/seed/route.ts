@@ -1,18 +1,22 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/server';
 import * as admin from 'firebase-admin';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams;
+    const email = searchParams.get('email') || 'admin@cacambaflow.com';
+    const password = searchParams.get('password') || 'password123';
+
     let userRecord;
     try {
-      userRecord = await adminAuth.getUserByEmail('admin@cacambaflow.com');
+      userRecord = await adminAuth.getUserByEmail(email);
       // Atualiza a senha por garantia
-      await adminAuth.updateUser(userRecord.uid, { password: 'password123' });
+      await adminAuth.updateUser(userRecord.uid, { password: password });
     } catch (e) {
       userRecord = await adminAuth.createUser({
-        email: 'admin@cacambaflow.com',
-        password: 'password123',
+        email: email,
+        password: password,
         displayName: 'Administrador',
       });
     }
@@ -25,7 +29,7 @@ export async function GET() {
     }, { merge: true });
 
     await adminDb.collection('profiles').doc(userRecord.uid).set({
-      email: 'admin@cacambaflow.com',
+      email: email,
       full_name: 'Administrador',
       role: 'ADMIN',
       tenant_id: 'tenant-admin',
@@ -35,8 +39,8 @@ export async function GET() {
     return NextResponse.json({ 
       success: true, 
       message: 'Usuário Admin criado com sucesso!',
-      email: 'admin@cacambaflow.com',
-      password: 'password123'
+      email: email,
+      password: password
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
