@@ -18,7 +18,7 @@ export default async function AtendimentosPage({
   searchParams: { date?: string };
 }) {
   // Pega a data da URL ou usa a data atual
-  const dateStr = searchParams.date ?? new Date().toISOString().split('T')[0];
+  const dateStr: string = searchParams.date ?? new Date().toISOString().split('T')[0];
   
   const [jobs, { drivers, vehicles }] = await Promise.all([
     getJobsForDispatch(dateStr),
