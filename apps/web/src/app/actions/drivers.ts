@@ -29,7 +29,6 @@ export async function getDrivers() {
   
   const snapshot = await adminDb.collection('drivers')
     .where('tenant_id', '==', tenantId)
-    .orderBy('created_at', 'desc')
     .get();
 
   const drivers = [];
@@ -49,7 +48,11 @@ export async function getDrivers() {
     });
   }
 
-  return drivers;
+  return drivers.sort((a: any, b: any) => {
+    const timeA = a.created_at?._seconds || 0;
+    const timeB = b.created_at?._seconds || 0;
+    return timeB - timeA;
+  });
 }
 
 // --- Criar motorista ---

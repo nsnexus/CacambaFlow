@@ -44,10 +44,10 @@ export async function getCustomers() {
   const snapshot = await adminDb.collection('customers')
     .where('tenant_id', '==', tenantId)
     .where('status', '==', 'ATIVO')
-    .orderBy('name', 'asc')
     .get();
 
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return data.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
 }
 
 export async function getCustomerWithAddresses(customerId: string) {

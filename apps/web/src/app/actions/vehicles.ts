@@ -27,10 +27,10 @@ export async function getVehicles() {
   
   const snapshot = await adminDb.collection('vehicles')
     .where('tenant_id', '==', tenantId)
-    .orderBy('plate', 'asc')
     .get();
 
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return data.sort((a: any, b: any) => (a.plate || '').localeCompare(b.plate || ''));
 }
 
 export async function createVehicle(

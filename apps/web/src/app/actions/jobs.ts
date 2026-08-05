@@ -3,15 +3,13 @@
 import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { revalidatePath } from 'next/cache';
 
-export async function getJobsForDispatch(dateStr: string) {
+export async function getJobsForDispatch() {
   const { tenantId } = await requireUserAndTenant();
   
-  // Usando Collection Group Query para buscar todos os jobs de todos os orders
-  const snapshot = await adminDb.collectionGroup('jobs')
+  // Como são várias coleções, precisamos trazer tudo do tenant
+  const snapshot = await adminDb.collection('jobs')
     .where('tenant_id', '==', tenantId)
-    .where('scheduled_date', '==', dateStr)
-    .orderBy('priority', 'desc')
-    .orderBy('sequence_number', 'asc')
+    .where('status', 'in', ['PENDING', 'ASSIGNED', 'IN_PROGRESS'])
     .get();
 
   const jobs = await Promise.all(snapshot.docs.map(async doc => {

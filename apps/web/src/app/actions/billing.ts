@@ -10,7 +10,6 @@ export async function getInvoices() {
   
   const snapshot = await adminDb.collection('invoices')
     .where('tenant_id', '==', tenantId)
-    .orderBy('due_date', 'desc')
     .get();
 
   const invoices = await Promise.all(snapshot.docs.map(async doc => {
@@ -23,7 +22,11 @@ export async function getInvoices() {
     return { id: doc.id, ...data, customers };
   }));
 
-  return invoices;
+  return invoices.sort((a: any, b: any) => {
+    const timeA = a.due_date ? new Date(a.due_date).getTime() : 0;
+    const timeB = b.due_date ? new Date(b.due_date).getTime() : 0;
+    return timeB - timeA;
+  });
 }
 
 // --- Buscar pedidos concluídos que ainda não foram faturados ---

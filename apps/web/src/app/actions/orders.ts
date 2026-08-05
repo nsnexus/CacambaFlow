@@ -50,7 +50,6 @@ export async function getOrders() {
   
   const snapshot = await adminDb.collection('orders')
     .where('tenant_id', '==', tenantId)
-    .orderBy('created_at', 'desc')
     .get();
 
   const orders = [];
@@ -84,7 +83,11 @@ export async function getOrders() {
     });
   }
 
-  return orders;
+  return orders.sort((a: any, b: any) => {
+    const timeA = a.created_at?._seconds || 0;
+    const timeB = b.created_at?._seconds || 0;
+    return timeB - timeA;
+  });
 }
 
 // --- Obter detalhes do pedido ---
