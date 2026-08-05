@@ -7,12 +7,22 @@ import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 // TODO: Migrar para Firestore Realtime
 async function getLatestLocations() {
   const { tenantId } = await requireUserAndTenant();
-  const snapshot = await adminDb.collection('fleet_locations')
-    .where('tenant_id', '==', tenantId)
-    .orderBy('timestamp', 'desc')
-    .limit(100)
-    .get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  try {
+    const locationsSnap = await adminDb.collection('fleet_locations')
+      .where('tenant_id', '==', tenantId)
+      .limit(100)
+      .get();
+    
+    const data = locationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return data.sort((a: any, b: any) => {
+      const timeA = a.timestamp?._seconds || 0;
+      const timeB = b.timestamp?._seconds || 0;
+      return timeB - timeA;
+    });
+  } catch (error) {
+    console.error('Error fetching locations:', error);
+    return [];
+  }
 }
 
 export default async function MapaPage() {

@@ -11,9 +11,15 @@ async function getFailureReasons() {
   const { tenantId } = await requireUserAndTenant();
   const snapshot = await adminDb.collection('failure_reasons')
     .where('tenant_id', '==', tenantId)
-    .orderBy('created_at', 'desc')
     .get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+  const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  // Sort in memory to avoid Firestore index requirement
+  return data.sort((a: any, b: any) => {
+    const timeA = a.created_at?._seconds || 0;
+    const timeB = b.created_at?._seconds || 0;
+    return timeB - timeA;
+  });
 }
 
 const CATEGORY_LABELS: Record<string, string> = {

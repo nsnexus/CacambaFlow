@@ -12,9 +12,14 @@ async function getAssets() {
   const { tenantId } = await requireUserAndTenant();
   const snapshot = await adminDb.collection('assets')
     .where('tenant_id', '==', tenantId)
-    .orderBy('created_at', 'desc')
     .get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+  const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return data.sort((a: any, b: any) => {
+    const timeA = a.created_at?._seconds || 0;
+    const timeB = b.created_at?._seconds || 0;
+    return timeB - timeA;
+  });
 }
 
 export default async function CacambasPage() {
