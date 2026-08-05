@@ -4,11 +4,20 @@ import { JobBoard } from '@/components/jobs/job-board';
 
 export const metadata: Metadata = { title: 'Despacho (Kanban) — CaçambaFlow' };
 
+import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
+
 // TODO: Migrar para Firestore - dados mock temporários
 async function getResources() {
+  const { tenantId } = await requireUserAndTenant();
+  
+  const [driversSnap, vehiclesSnap] = await Promise.all([
+    adminDb.collection('profiles').where('tenant_id', '==', tenantId).where('role', '==', 'DRIVER').get(),
+    adminDb.collection('vehicles').where('tenant_id', '==', tenantId).get()
+  ]);
+
   return {
-    drivers: [] as any[],
-    vehicles: [] as any[]
+    drivers: driversSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+    vehicles: vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
   };
 }
 

@@ -4,9 +4,16 @@ import { DataTable } from '@/components/ui/data-table';
 
 export const metadata: Metadata = { title: 'Motivos de Falha — CaçambaFlow' };
 
+import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
+
 // TODO: Migrar para Firestore
 async function getFailureReasons() {
-  return [] as any[];
+  const { tenantId } = await requireUserAndTenant();
+  const snapshot = await adminDb.collection('failure_reasons')
+    .where('tenant_id', '==', tenantId)
+    .orderBy('created_at', 'desc')
+    .get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
 const CATEGORY_LABELS: Record<string, string> = {

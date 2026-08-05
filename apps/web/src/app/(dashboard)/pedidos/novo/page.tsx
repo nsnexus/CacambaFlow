@@ -4,12 +4,22 @@ import { OrderForm } from '@/components/orders/order-form';
 
 export const metadata: Metadata = { title: 'Novo Pedido — CaçambaFlow' };
 
+import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
+
 // TODO: Migrar para Firestore
 async function getFormData() {
+  const { tenantId } = await requireUserAndTenant();
+  
+  const [customersSnap, addressesSnap, assetTypesSnap] = await Promise.all([
+    adminDb.collection('customers').where('tenant_id', '==', tenantId).get(),
+    adminDb.collection('addresses').where('tenant_id', '==', tenantId).get(),
+    adminDb.collection('asset_types').where('tenant_id', '==', tenantId).get()
+  ]);
+
   return {
-    customers: [] as any[],
-    addresses: [] as any[],
-    assetTypes: [] as any[]
+    customers: customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+    addresses: addressesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+    assetTypes: assetTypesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
   };
 }
 

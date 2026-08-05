@@ -2,11 +2,18 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Centro de Controle — CaçambaFlow' };
 
+import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
+
 // TODO: Migrar para Firestore Realtime
 async function getLatestLocations() {
-  return [] as any[];
+  const { tenantId } = await requireUserAndTenant();
+  const snapshot = await adminDb.collection('fleet_locations')
+    .where('tenant_id', '==', tenantId)
+    .orderBy('timestamp', 'desc')
+    .limit(100)
+    .get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
-
 
 export default async function MapaPage() {
   const telemetry = await getLatestLocations();

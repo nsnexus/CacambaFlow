@@ -5,9 +5,16 @@ import { StatusBadge } from '@/components/ui/status-badge';
 
 export const metadata: Metadata = { title: 'Caçambas — CaçambaFlow' };
 
+import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
+
 // TODO: Migrar para Firestore
 async function getAssets() {
-  return [] as any[];
+  const { tenantId } = await requireUserAndTenant();
+  const snapshot = await adminDb.collection('assets')
+    .where('tenant_id', '==', tenantId)
+    .orderBy('created_at', 'desc')
+    .get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
 export default async function CacambasPage() {
