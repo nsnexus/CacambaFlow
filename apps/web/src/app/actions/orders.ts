@@ -190,7 +190,7 @@ export async function createOrder(
       customer_id: parsed.data.customer_id,
       address_id: parsed.data.address_id,
       order_number: orderNumber,
-      scheduled_date: parsed.data.jobs[0].scheduled_date, 
+      scheduled_date: parsed.data.jobs[0]?.scheduled_date || null,
       price: parsed.data.price || null,
       payment_method: parsed.data.payment_method || null,
       notes: parsed.data.notes || null,
