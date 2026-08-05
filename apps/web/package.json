@@ -21,9 +21,7 @@
     "@hookform/resolvers": "^3.6.0",
     "date-fns": "^3.6.0",
     "lucide-react": "^0.396.0",
-    "@cacambaflow/types": "*",
-    "@cacambaflow/validation": "*",
-    "@cacambaflow/ui": "*"
+    "@cacambaflow/types": "*"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
