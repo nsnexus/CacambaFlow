@@ -14,9 +14,9 @@ export default async function FinanceiroPage() {
   ]);
 
   // Resumo financeiro rápido
-  const totalAberto = invoices.filter(i => i.status === 'PENDENTE' || i.status === 'ATRASADO').reduce((acc, curr) => acc + Number(curr.amount), 0);
+  const totalAberto = invoices.filter((i: any) => i.status === 'PENDENTE' || i.status === 'ATRASADO').reduce((acc, curr: any) => acc + Number(curr.amount), 0);
   const totalFaturar = unbilled.reduce((acc, curr: any) => acc + Number(curr.price), 0);
-  const totalRecebido = invoices.filter(i => i.status === 'PAGO').reduce((acc, curr) => acc + Number(curr.amount), 0);
+  const totalRecebido = invoices.filter((i: any) => i.status === 'PAGO').reduce((acc, curr: any) => acc + Number(curr.amount), 0);
 
   return (
     <div>
