@@ -41,8 +41,10 @@ export default async function AtendimentosPage({
             defaultValue={dateStr} 
             className="input" 
             style={{ width: 'auto' }} 
-            onChange={(e) => e.currentTarget.form?.submit()}
           />
+          <button type="submit" className="btn btn--secondary btn--sm">
+            Filtrar
+          </button>
         </form>
       </div>
 
