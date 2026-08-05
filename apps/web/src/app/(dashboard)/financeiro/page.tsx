@@ -35,7 +35,7 @@ export default async function FinanceiroPage() {
         <div className="card" style={{ borderLeft: '4px solid var(--color-info)' }}>
           <p className="text-sm text-muted" style={{ fontWeight: 600 }}>Contas a Receber (Em Aberto)</p>
           <p style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 'var(--space-2)' }}>R$ {totalAberto.toFixed(2)}</p>
-          <p className="text-xs text-muted">{invoices.filter(i => i.status === 'PENDENTE').length} boleto(s) pendente(s)</p>
+          <p className="text-xs text-muted">{invoices.filter((i: any) => i.status === 'PENDENTE').length} boleto(s) pendente(s)</p>
         </div>
         <div className="card" style={{ borderLeft: '4px solid var(--color-success)' }}>
           <p className="text-sm text-muted" style={{ fontWeight: 600 }}>Recebido</p>
