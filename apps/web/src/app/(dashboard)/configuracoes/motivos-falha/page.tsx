@@ -1,20 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { createServerClient } from '@/lib/supabase/server';
 import { DataTable } from '@/components/ui/data-table';
 
 export const metadata: Metadata = { title: 'Motivos de Falha — CaçambaFlow' };
 
+// TODO: Migrar para Firestore
 async function getFailureReasons() {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('failure_reasons')
-    .select('id, name, category, requires_note, requires_photo, allow_auto_reschedule, active')
-    .order('category')
-    .order('name');
-
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  return [] as any[];
 }
 
 const CATEGORY_LABELS: Record<string, string> = {

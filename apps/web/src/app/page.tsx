@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation';
-import { createServerClient } from '@/lib/supabase/server';
+import { getServerSession } from '@/lib/firebase/server';
 
 export default async function HomePage() {
-  const supabase = createServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await getServerSession();
 
   if (!session) {
     redirect('/login');

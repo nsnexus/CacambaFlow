@@ -1,25 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { createServerClient } from '@/lib/supabase/server';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 
 export const metadata: Metadata = { title: 'Caçambas — CaçambaFlow' };
 
+// TODO: Migrar para Firestore
 async function getAssets() {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('assets')
-    .select(`
-      id, identifier, public_code, color, status,
-      acquired_at, last_maintenance_at, notes, version, created_at,
-      asset_types ( name, volume_m3 ),
-      addresses ( name, city, state )
-    `)
-    .order('identifier', { ascending: true });
-
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  return [] as any[];
 }
 
 export default async function CacambasPage() {

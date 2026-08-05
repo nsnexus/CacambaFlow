@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
-import { createServerClient } from '@/lib/supabase/server';
 import { DataTable } from '@/components/ui/data-table';
-import Image from 'next/image';
 
 export const metadata: Metadata = { title: 'Evidências — CaçambaFlow' };
 
@@ -15,45 +13,11 @@ const EVIDENCE_LABELS: Record<string, string> = {
   DOCUMENTO: 'Documento Anexo',
 };
 
+// TODO: Migrar para Firebase Storage + Firestore
 async function getEvidences() {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('evidences')
-    .select(`
-      id, evidence_type, storage_path, mime_type, captured_at_device, latitude, longitude, status,
-      jobs (
-        job_number, job_type,
-        orders ( order_number, customers ( name ) ),
-        drivers ( profiles ( name ) )
-      )
-    `)
-    .order('captured_at_device', { ascending: false });
-
-  if (error) throw new Error(error.message);
-
-  // Gerar as URLs assinadas (Signed URLs) para que o navegador possa ler o bucket privado
-  // No MVP faremos de 1 em 1 hr. Em produção usar createSignedUrls (batch) para otimizar.
-  const paths = (data ?? []).map((e) => e.storage_path);
-  let signedUrlsMap: Record<string, string> = {};
-
-  if (paths.length > 0) {
-    const { data: signedData } = await supabase.storage
-      .from('evidences')
-      .createSignedUrls(paths, 3600); // Válido por 1 hora
-
-    if (signedData) {
-      signedUrlsMap = signedData.reduce((acc, curr) => {
-        if (curr.path && curr.signedUrl) acc[curr.path] = curr.signedUrl;
-        return acc;
-      }, {} as Record<string, string>);
-    }
-  }
-
-  return (data ?? []).map(e => ({
-    ...e,
-    signedUrl: signedUrlsMap[e.storage_path] || null,
-  }));
+  return [] as any[];
 }
+
 
 export default async function EvidenciasPage() {
   const evidences = await getEvidences();

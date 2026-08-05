@@ -1,20 +1,14 @@
 import type { Metadata } from 'next';
-import { createServerClient } from '@/lib/supabase/server';
 import { getJobsForDispatch } from '@/app/actions/jobs';
 import { JobBoard } from '@/components/jobs/job-board';
 
 export const metadata: Metadata = { title: 'Despacho (Kanban) — CaçambaFlow' };
 
-// Helpers para carregar os recursos
+// TODO: Migrar para Firestore - dados mock temporários
 async function getResources() {
-  const supabase = createServerClient();
-  const [drivers, vehicles] = await Promise.all([
-    supabase.from('drivers').select('id, profiles(name)').eq('status', 'ATIVO'),
-    supabase.from('vehicles').select('id, plate').eq('status', 'ATIVO')
-  ]);
   return {
-    drivers: drivers.data ?? [],
-    vehicles: vehicles.data ?? []
+    drivers: [] as any[],
+    vehicles: [] as any[]
   };
 }
 

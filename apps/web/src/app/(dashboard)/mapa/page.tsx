@@ -1,47 +1,12 @@
 import type { Metadata } from 'next';
-import { createServerClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = { title: 'Centro de Controle — CaçambaFlow' };
 
-// Para o MVP (sem dependência de API do Google Maps paga), 
-// buscaremos as últimas posições conhecidas e mostraremos em um layout tático.
+// TODO: Migrar para Firestore Realtime
 async function getLatestLocations() {
-  const supabase = createServerClient();
-  
-  // Pegamos os motoristas ativos e suas informações
-  const { data: drivers, error } = await supabase
-    .from('drivers')
-    .select(`
-      id, license_number, status,
-      profiles ( name, phone )
-    `)
-    .eq('status', 'ATIVO');
-    
-  if (error || !drivers) return [];
-
-  const results = [];
-  
-  // Para cada motorista, pega a última posição registrada
-  // Em produção, isso seria uma view otimizada (SELECT DISTINCT ON driver_id) ou Realtime Sub
-  for (const driver of drivers) {
-    const { data: loc } = await supabase
-      .from('driver_locations')
-      .select('latitude, longitude, speed, device_timestamp')
-      .eq('driver_id', driver.id)
-      .order('device_timestamp', { ascending: false })
-      .limit(1)
-      .single();
-      
-    if (loc) {
-      results.push({
-        driver,
-        location: loc,
-      });
-    }
-  }
-
-  return results;
+  return [] as any[];
 }
+
 
 export default async function MapaPage() {
   const telemetry = await getLatestLocations();
