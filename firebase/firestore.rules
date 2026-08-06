@@ -54,9 +54,9 @@ service cloud.firestore {
         allow read: if isAuthenticated() && isSameTenant(resource.data);
         
         // Motoristas podem atualizar os status dos trabalhos deles (via app móvel)
-        allow update: if isAuthenticated() 
-                      && isSameTenant(resource.data) 
-                      && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']));
+        allow update: if isAuthenticated()
+                      && isSameTenant(resource.data)
+                      && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at', 'failure_note']));
                       
         allow create, delete: if false;
       }
@@ -65,6 +65,22 @@ service cloud.firestore {
     match /invoices/{invoiceId} {
       allow read: if isAuthenticated() && isSameTenant(resource.data);
       allow write: if false;
+    }
+
+    // Evidências (fotos) capturadas pelo app do motorista
+    match /evidences/{evidenceId} {
+      allow read: if isAuthenticated() && isSameTenant(resource.data);
+      allow create: if isAuthenticated()
+                    && isSameTenant(request.resource.data)
+                    && request.resource.data.created_by == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Posições de GPS reportadas pelo app do motorista
+    match /driver_locations/{locationId} {
+      allow read: if isAuthenticated() && isSameTenant(resource.data);
+      allow create: if isAuthenticated() && isSameTenant(request.resource.data);
+      allow update, delete: if false;
     }
   }
 }

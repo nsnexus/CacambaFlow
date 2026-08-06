@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { outbox } from '@cacambaflow/sync-engine';
-import { supabase } from '../lib/supabase';
+import { auth, db } from '../lib/firebase';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const LOCATION_TASK_NAME = 'background-location-task';
 
@@ -11,52 +11,42 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
     console.error('[LocationTask] Erro na tarefa em background:', error);
     return;
   }
-  
+
   if (data) {
     const { locations } = data as { locations: Location.LocationObject[] };
     if (!locations || locations.length === 0) return;
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) return; // Ninguém logado
+      const user = auth.currentUser;
+      if (!user) return; // Ninguém logado
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('tenant_id, id')
-        .eq('auth_user_id', userData.user.id)
-        .single();
-      
-      if (!profile) return;
+      const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
+      if (!profileSnap.exists()) return;
+      const tenantId = profileSnap.data().tenant_id;
+      if (!tenantId) return;
 
-      const { data: driver } = await supabase
-        .from('drivers')
-        .select('id')
-        .eq('profile_id', profile.id)
-        .single();
-
-      if (!driver) return;
+      const driversQuery = query(collection(db, 'drivers'), where('profile_id', '==', user.uid));
+      const driversSnap = await getDocs(driversQuery);
+      if (driversSnap.empty) return;
+      const driverId = driversSnap.docs[0].id;
 
       // Pega apenas a coordenada mais recente do lote
       const loc = locations[locations.length - 1];
 
-      // Salva no Outbox (mesmo sem internet, o sync-engine cuidará do envio depois)
-      await outbox.enqueueEvent(
-        profile.tenant_id,
-        'mobile-device-id', // idealmente pega via expo-application ou similar
-        'location',
-        driver.id, // aggregate_id
-        'LOCATION_BATCH',
-        {
-          lat: loc.coords.latitude,
-          lng: loc.coords.longitude,
-          accuracy: loc.coords.accuracy,
-          speed: loc.coords.speed,
-          heading: loc.coords.heading,
-          device_timestamp: new Date(loc.timestamp).toISOString(),
-        }
-      );
+      // Envio direto e online. A fila offline (Outbox) é da Fase 5, ainda não implementada.
+      await addDoc(collection(db, 'driver_locations'), {
+        tenant_id: tenantId,
+        driver_id: driverId,
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        accuracy: loc.coords.accuracy,
+        speed: loc.coords.speed,
+        heading: loc.coords.heading,
+        device_timestamp: new Date(loc.timestamp).toISOString(),
+        server_timestamp: serverTimestamp(),
+      });
     } catch (err) {
-      console.warn('[LocationTask] Erro ao gravar evento na outbox:', err);
+      console.warn('[LocationTask] Erro ao gravar localização:', err);
     }
   }
 });
@@ -84,9 +74,9 @@ export async function startLocationTracking() {
       distanceInterval: 50, // Ou a cada 50 metros percorridos
       showsBackgroundLocationIndicator: true, // Bolinha azul no topo (iOS) ou Notificação (Android)
       foregroundService: {
-        notificationTitle: "CaçambaFlow Ativo",
-        notificationBody: "Rastreando rota do atendimento atual.",
-        notificationColor: "#F97316",
+        notificationTitle: 'CaçambaFlow Ativo',
+        notificationBody: 'Rastreando rota do atendimento atual.',
+        notificationColor: '#F97316',
       },
     });
   }

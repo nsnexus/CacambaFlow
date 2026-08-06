@@ -1,23 +1,22 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { auth, db } from '../../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
 import { theme } from '../../constants/theme';
 
 export default function ProfileScreen() {
-  const [profile, setProfile] = useState<{ name: string; email: string } | null>(null);
+  const [profile, setProfile] = useState<{ name?: string; full_name?: string; email: string } | null>(null);
 
   useEffect(() => {
     async function loadProfile() {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+      const user = auth.currentUser;
+      if (!user) return;
 
-      const { data } = await supabase
-        .from('profiles')
-        .select('name, email')
-        .eq('auth_user_id', userData.user.id)
-        .single();
-        
-      if (data) setProfile(data as any);
+      const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
+      if (profileSnap.exists()) {
+        setProfile(profileSnap.data() as any);
+      }
     }
     loadProfile();
   }, []);
@@ -28,12 +27,12 @@ export default function ProfileScreen() {
       'Tem certeza que deseja sair do aplicativo?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Sair', 
+        {
+          text: 'Sair',
           style: 'destructive',
           onPress: async () => {
-            await supabase.auth.signOut();
-            // O auth state listener do _layout vai cuidar do redirecionamento
+            await signOut(auth);
+            // O onAuthStateChanged em app/index.tsx cuida do redirecionamento
           }
         }
       ]
@@ -45,10 +44,10 @@ export default function ProfileScreen() {
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {profile?.name ? profile.name.charAt(0).toUpperCase() : '👤'}
+            {profile?.name || profile?.full_name ? (profile.name || profile.full_name)!.charAt(0).toUpperCase() : '👤'}
           </Text>
         </View>
-        <Text style={styles.name}>{profile?.name || 'Carregando...'}</Text>
+        <Text style={styles.name}>{profile?.name || profile?.full_name || 'Carregando...'}</Text>
         <Text style={styles.email}>{profile?.email}</Text>
       </View>
 

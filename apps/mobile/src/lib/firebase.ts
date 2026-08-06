@@ -1,5 +1,9 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth } from 'firebase/auth';
+// getReactNativePersistence existe em runtime (export condicional "react-native" do
+// pacote), mas o resolver de tipos do TS não o enxerga nesse caminho de import.
+// @ts-expect-error — ver nota acima
+import { getReactNativePersistence } from 'firebase/auth';
 import { getFirestore, enableMultiTabIndexedDbPersistence, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';

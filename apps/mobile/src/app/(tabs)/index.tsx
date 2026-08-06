@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { auth, db } from '../../lib/firebase';
 import { collectionGroup, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
 import { theme } from '../../constants/theme';
@@ -7,6 +9,7 @@ import type { JobStatus } from '@cacambaflow/types';
 
 type JobCardData = {
   id: string;
+  order_id: string;
   job_number: string;
   job_type: string;
   status: JobStatus;
@@ -18,11 +21,12 @@ type JobCardData = {
 };
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [jobs, setJobs] = useState<JobCardData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  async function fetchJobs() {
+  const fetchJobs = useCallback(async function fetchJobs() {
     try {
       const user = auth.currentUser;
       if (!user) return;
@@ -78,6 +82,7 @@ export default function HomeScreen() {
         
         return {
           id: jobDoc.id,
+          order_id: data.order_id,
           job_number: data.job_number,
           job_type: data.job_type,
           status: data.status,
@@ -93,11 +98,13 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }
-
-  useEffect(() => {
-    fetchJobs();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchJobs();
+    }, [fetchJobs])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -118,7 +125,10 @@ export default function HomeScreen() {
   };
 
   const renderItem = ({ item }: { item: JobCardData }) => (
-    <TouchableOpacity style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => router.push({ pathname: '/job/[id]', params: { id: item.id, orderId: item.order_id } })}
+    >
       <View style={styles.cardHeader}>
         <Text style={styles.jobNumber}>{item.job_number}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
