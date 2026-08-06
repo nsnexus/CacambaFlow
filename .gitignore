@@ -11,3 +11,8 @@ build/
 out/
 .vercel
 .env*
+
+# O lockfile na raiz quebrou o install isolado da Vercel (cd apps/web && npm
+# install) — "No Next.js version detected" após remover/trocar pacotes
+# inesperadamente. Reverter para instalação não travada até investigar.
+package-lock.json
