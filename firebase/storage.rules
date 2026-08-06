@@ -6,14 +6,20 @@ service firebase.storage {
       return request.auth != null;
     }
     
+    // Verifica se o usuário autenticado pertence ao tenant do caminho
+    function isSameTenant(tenantId) {
+      return isAuthenticated()
+             && firestore.get(/databases/(default)/documents/profiles/$(request.auth.uid)).data.tenant_id == tenantId;
+    }
+
     // As evidências ficam em /evidences/{tenantId}/{orderId}/{jobId}/{filename}
     match /evidences/{tenantId}/{allPaths=**} {
-      
-      // Qualquer um autenticado pode ler (geralmente gerentes e o próprio app)
-      allow read: if isAuthenticated();
-      
-      // Apenas autenticado pode subir evidências, idealmente checando se o mimeType é imagem
-      allow write: if isAuthenticated() 
+
+      // Só quem pertence ao mesmo tenant pode ler as evidências
+      allow read: if isSameTenant(tenantId);
+
+      // Só quem pertence ao mesmo tenant pode subir, e apenas imagens
+      allow write: if isSameTenant(tenantId)
                    && request.resource.contentType.matches('image/.*');
     }
   }

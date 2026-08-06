@@ -21,10 +21,7 @@ export async function GET() {
       success: true
     });
   } catch (error: any) {
-    return NextResponse.json({ 
-      errorName: error.name,
-      errorMessage: error.message,
-      errorStack: error.stack
-    }, { status: 500 });
+    console.warn('debug route falhou', error.name);
+    return NextResponse.json({ error: 'Falha ao verificar sessão.' }, { status: 500 });
   }
 }

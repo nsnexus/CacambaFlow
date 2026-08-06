@@ -2,12 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/server';
 import * as admin from 'firebase-admin';
 
-export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const email = searchParams.get('email') || 'admin@cacambaflow.com';
-    const password = searchParams.get('password') || 'password123';
+export async function POST(request: NextRequest) {
+  const providedSecret = request.headers.get('x-seed-secret');
+  if (!process.env.SEED_SECRET || providedSecret !== process.env.SEED_SECRET) {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+  }
 
+  const body = await request.json().catch(() => null);
+  const email = body?.email;
+  const password = body?.password;
+
+  if (!email || !password) {
+    return NextResponse.json({ error: 'email e password são obrigatórios' }, { status: 400 });
+  }
+  if (password.length < 8) {
+    return NextResponse.json({ error: 'password precisa de pelo menos 8 caracteres' }, { status: 400 });
+  }
+
+  try {
     let userRecord;
     try {
       userRecord = await adminAuth.getUserByEmail(email);
@@ -36,13 +48,13 @@ export async function GET(request: NextRequest) {
       created_at: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Usuário Admin criado com sucesso!',
-      email: email,
-      password: password
+    return NextResponse.json({
+      success: true,
+      message: 'Usuário Admin criado/atualizado com sucesso.',
+      email: email
     });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.warn('seed route falhou', error.message);
+    return NextResponse.json({ success: false, error: 'Falha ao criar usuário admin.' }, { status: 500 });
   }
 }

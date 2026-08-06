@@ -27,43 +27,43 @@ service cloud.firestore {
     
     // Outras coleções - leitura apenas se pertencer ao mesmo tenant
     match /customers/{customerId} {
-      allow read: if isAuthenticated() && isSameTenant(resourceData);
+      allow read: if isAuthenticated() && isSameTenant(resource.data);
       allow write: if false; // Gerenciado via Server Actions (Admin SDK)
       
       match /addresses/{addressId} {
-        allow read: if isAuthenticated() && isSameTenant(resourceData);
+        allow read: if isAuthenticated() && isSameTenant(resource.data);
         allow write: if false;
       }
     }
     
     match /vehicles/{vehicleId} {
-      allow read: if isAuthenticated() && isSameTenant(resourceData);
+      allow read: if isAuthenticated() && isSameTenant(resource.data);
       allow write: if false;
     }
     
     match /drivers/{driverId} {
-      allow read: if isAuthenticated() && isSameTenant(resourceData);
+      allow read: if isAuthenticated() && isSameTenant(resource.data);
       allow write: if false;
     }
     
     match /orders/{orderId} {
-      allow read: if isAuthenticated() && isSameTenant(resourceData);
+      allow read: if isAuthenticated() && isSameTenant(resource.data);
       allow write: if false;
       
       match /jobs/{jobId} {
-        allow read: if isAuthenticated() && isSameTenant(resourceData);
+        allow read: if isAuthenticated() && isSameTenant(resource.data);
         
         // Motoristas podem atualizar os status dos trabalhos deles (via app móvel)
         allow update: if isAuthenticated() 
-                      && isSameTenant(resourceData) 
-                      && (request.resource.data.diff(resourceData).affectedKeys().hasOnly(['status', 'updated_at']));
+                      && isSameTenant(resource.data) 
+                      && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at']));
                       
         allow create, delete: if false;
       }
     }
     
     match /invoices/{invoiceId} {
-      allow read: if isAuthenticated() && isSameTenant(resourceData);
+      allow read: if isAuthenticated() && isSameTenant(resource.data);
       allow write: if false;
     }
   }
