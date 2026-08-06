@@ -20,7 +20,8 @@
     "eslint": "^8.57.0"
   },
   "overrides": {
-    "react-native-screens": "3.31.1"
+    "react-native-screens": "3.31.1",
+    "@types/react": "18.3.31"
   },
   "engines": {
     "node": ">=20.0.0",

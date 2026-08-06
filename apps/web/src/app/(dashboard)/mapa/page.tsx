@@ -13,8 +13,8 @@ async function getLatestLocations() {
       .limit(100)
       .get();
     
-    const data = locationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return data.sort((a: any, b: any) => {
+    const data = locationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Record<string, any>));
+    return data.sort((a, b) => {
       const timeA = a.timestamp?._seconds || 0;
       const timeB = b.timestamp?._seconds || 0;
       return timeB - timeA;

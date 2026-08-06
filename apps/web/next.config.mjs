@@ -5,18 +5,12 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        // Supabase Storage - substitua pela URL do seu projeto
+        // Firebase Storage
         protocol: 'https',
-        hostname: '*.supabase.co',
-        pathname: '/storage/v1/object/sign/**',
+        hostname: 'firebasestorage.googleapis.com',
+        pathname: '/v0/b/**',
       },
     ],
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
 };
 

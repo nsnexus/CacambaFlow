@@ -21,7 +21,7 @@ export function FaturarBtn({
     
     setLoading(true);
     try {
-      await createInvoice(orderId, customerId, amount, dueDate.toISOString().split('T')[0]);
+      await createInvoice(orderId, customerId, amount, dueDate.toISOString().slice(0, 10));
     } catch (e: any) {
       alert(e.message);
     }

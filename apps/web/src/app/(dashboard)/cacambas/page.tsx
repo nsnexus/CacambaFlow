@@ -14,8 +14,8 @@ async function getAssets() {
     .where('tenant_id', '==', tenantId)
     .get();
     
-  const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  return data.sort((a: any, b: any) => {
+  const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Record<string, any>));
+  return data.sort((a, b) => {
     const timeA = a.created_at?._seconds || 0;
     const timeB = b.created_at?._seconds || 0;
     return timeB - timeA;
