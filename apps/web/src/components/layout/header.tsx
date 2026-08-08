@@ -3,6 +3,7 @@
 import { auth } from '@/lib/firebase/client';
 import { clearSessionCookie } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
+import { ThemeToggle } from './theme-toggle';
 
 export function Header() {
   const router = useRouter();
@@ -19,7 +20,8 @@ export function Header() {
       <div className="header__left">
         {/* Breadcrumb ou título da página pode ser injetado aqui */}
       </div>
-      <div className="header__right">
+      <div className="header__right flex items-center gap-2">
+        <ThemeToggle />
         <button
           id="header-logout-btn"
           className="btn btn--secondary btn--sm"
