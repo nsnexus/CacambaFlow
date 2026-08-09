@@ -18,6 +18,15 @@ export default function RootLayout() {
             title: 'Atendimento',
           }}
         />
+        <Stack.Screen
+          name="vehicle-select"
+          options={{
+            headerShown: true,
+            headerStyle: { backgroundColor: theme.colors.surface },
+            headerTintColor: theme.colors.text,
+            title: 'Selecionar Veículo',
+          }}
+        />
       </Stack>
     </>
   );

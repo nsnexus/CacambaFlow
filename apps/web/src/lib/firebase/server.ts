@@ -41,6 +41,16 @@ export async function requireUserAndTenant() {
   return {
     uid: session.uid,
     tenantId: profile?.tenant_id as string,
-    profileId: session.uid
+    profileId: session.uid,
+    role: profile?.role as string,
   };
+}
+
+// Gestão de múltiplas empresas (tenants) é uma visão que cruza dados de
+// vários clientes — só quem for SUPER_ADMIN pode acessar, pra um admin de
+// uma empresa não conseguir ver dados de outra.
+export async function requireSuperAdmin() {
+  const session = await requireUserAndTenant();
+  if (session.role !== 'SUPER_ADMIN') throw new Error('Acesso restrito a super administradores');
+  return session;
 }

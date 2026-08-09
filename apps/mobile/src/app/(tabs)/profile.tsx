@@ -1,25 +1,50 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { auth, db } from '../../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { theme } from '../../constants/theme';
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const [profile, setProfile] = useState<{ name?: string; full_name?: string; email: string } | null>(null);
+  const [currentVehicle, setCurrentVehicle] = useState<{ plate: string } | null>(null);
 
-  useEffect(() => {
-    async function loadProfile() {
-      const user = auth.currentUser;
-      if (!user) return;
+  const load = useCallback(async () => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-      const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
-      if (profileSnap.exists()) {
-        setProfile(profileSnap.data() as any);
+    const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
+    if (!profileSnap.exists()) return;
+    const profileData = profileSnap.data() as any;
+    setProfile(profileData);
+
+    const tenantId = profileData.tenant_id;
+    const driversSnap = await getDocs(query(
+      collection(db, 'drivers'),
+      where('profile_id', '==', user.uid),
+      where('tenant_id', '==', tenantId)
+    ));
+    if (driversSnap.empty) return;
+    const driverData = driversSnap.docs[0].data();
+
+    if (driverData.current_vehicle_id) {
+      const vehicleSnap = await getDoc(doc(db, 'vehicles', driverData.current_vehicle_id));
+      if (vehicleSnap.exists()) {
+        setCurrentVehicle({ plate: (vehicleSnap.data() as any).plate });
       }
+    } else {
+      setCurrentVehicle(null);
     }
-    loadProfile();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   async function handleLogout() {
     Alert.alert(
@@ -52,11 +77,14 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.menu}>
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Configurações</Text>
-          <Text style={styles.menuItemArrow}>›</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/vehicle-select')}>
+          <Text style={styles.menuItemText}>Meu Veículo</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
+            <Text style={styles.menuItemValue}>{currentVehicle?.plate ?? 'Nenhum selecionado'}</Text>
+            <Text style={styles.menuItemArrow}>›</Text>
+          </View>
         </TouchableOpacity>
-        
+
         <TouchableOpacity style={styles.menuItem}>
           <Text style={styles.menuItemText}>Ajuda e Suporte</Text>
           <Text style={styles.menuItemArrow}>›</Text>
@@ -132,6 +160,10 @@ const styles = StyleSheet.create({
   menuItemArrow: {
     color: theme.colors.textMuted,
     fontSize: 18,
+  },
+  menuItemValue: {
+    color: theme.colors.textMuted,
+    fontSize: 14,
   },
   logoutText: {
     color: theme.colors.danger,

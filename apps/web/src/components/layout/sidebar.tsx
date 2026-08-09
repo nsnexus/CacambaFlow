@@ -14,6 +14,7 @@ const navItems = [
   { href: '/mapa', label: 'Centro de Controle', icon: '🗺️' },
   { href: '/evidencias', label: 'Evidências', icon: '📷' },
   { href: '/relatorios', label: 'Relatórios', icon: '📈' },
+  { href: '/empresas', label: 'Empresas', icon: '🏢' },
   { href: '/configuracoes', label: 'Configurações', icon: '⚙️' },
 ];
 
