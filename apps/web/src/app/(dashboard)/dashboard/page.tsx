@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getDashboardSummary } from '@/app/actions/dashboard';
+import { ClipboardList, Clock, Truck, CheckCircle2, XCircle, UserRound, Container, MapPin, type LucideIcon } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Dashboard — CaçambaFlow',
@@ -8,15 +9,15 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   const summary = await getDashboardSummary();
 
-  const stats = [
-    { id: 'stat-atendimentos', label: 'Atendimentos Hoje', value: summary.atendimentosHoje, icon: '📋', color: 'var(--color-info)' },
-    { id: 'stat-pendentes', label: 'Pendentes', value: summary.pendentes, icon: '⏳', color: 'var(--color-warning)' },
-    { id: 'stat-em-rota', label: 'Em Rota', value: summary.emRota, icon: '🚛', color: 'var(--color-status-em-rota)' },
-    { id: 'stat-concluidos', label: 'Concluídos', value: summary.concluidos, icon: '✅', color: 'var(--color-success)' },
-    { id: 'stat-falhados', label: 'Falhados', value: summary.falhados, icon: '❌', color: 'var(--color-danger)' },
-    { id: 'stat-motoristas', label: 'Motoristas Online', value: summary.motoristasOnline, icon: '👤', color: 'var(--color-primary)' },
-    { id: 'stat-cacambas-livres', label: 'Caçambas Disponíveis', value: summary.cacambasDisponiveis, icon: '🪣', color: 'var(--color-success)' },
-    { id: 'stat-cacambas-locadas', label: 'Caçambas Locadas', value: summary.cacambasLocadas, icon: '📍', color: 'var(--color-info)' },
+  const stats: { id: string; label: string; value: number; icon: LucideIcon; color: string }[] = [
+    { id: 'stat-atendimentos', label: 'Atendimentos Hoje', value: summary.atendimentosHoje, icon: ClipboardList, color: 'var(--color-info)' },
+    { id: 'stat-pendentes', label: 'Pendentes', value: summary.pendentes, icon: Clock, color: 'var(--color-warning)' },
+    { id: 'stat-em-rota', label: 'Em Rota', value: summary.emRota, icon: Truck, color: 'var(--color-status-em-rota)' },
+    { id: 'stat-concluidos', label: 'Concluídos', value: summary.concluidos, icon: CheckCircle2, color: 'var(--color-success)' },
+    { id: 'stat-falhados', label: 'Falhados', value: summary.falhados, icon: XCircle, color: 'var(--color-danger)' },
+    { id: 'stat-motoristas', label: 'Motoristas Online', value: summary.motoristasOnline, icon: UserRound, color: 'var(--color-primary)' },
+    { id: 'stat-cacambas-livres', label: 'Caçambas Disponíveis', value: summary.cacambasDisponiveis, icon: Container, color: 'var(--color-success)' },
+    { id: 'stat-cacambas-locadas', label: 'Caçambas Locadas', value: summary.cacambasLocadas, icon: MapPin, color: 'var(--color-info)' },
   ];
 
   return (
@@ -33,7 +34,7 @@ export default async function DashboardPage() {
         {stats.map((stat) => (
           <div key={stat.id} id={stat.id} className="stat-card">
             <div className="stat-card__icon" style={{ color: stat.color }}>
-              {stat.icon}
+              <stat.icon size={26} strokeWidth={2} />
             </div>
             <div>
               <div className="stat-card__value">{stat.value}</div>

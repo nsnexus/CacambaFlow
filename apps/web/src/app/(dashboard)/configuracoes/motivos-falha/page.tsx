@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Check } from 'lucide-react';
 import { DataTable } from '@/components/ui/data-table';
 import { getFailureReasons } from '@/app/actions/failure-reasons';
 import { SettingsNav } from '@/components/layout/settings-nav';
@@ -56,17 +57,17 @@ export default async function MotivosFalhaPage() {
           {
             key: 'requires_note',
             label: 'Exige Obs.',
-            render: (val) => <span style={{ color: val ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>{val ? '✓' : '—'}</span>,
+            render: (val) => <span style={{ color: val ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>{val ? <Check size={16} /> : '—'}</span>,
           },
           {
             key: 'requires_photo',
             label: 'Exige Foto',
-            render: (val) => <span style={{ color: val ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>{val ? '✓' : '—'}</span>,
+            render: (val) => <span style={{ color: val ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>{val ? <Check size={16} /> : '—'}</span>,
           },
           {
             key: 'allow_auto_reschedule',
             label: 'Reagenda Auto.',
-            render: (val) => <span style={{ color: val ? 'var(--color-info)' : 'var(--color-text-muted)' }}>{val ? '✓' : '—'}</span>,
+            render: (val) => <span style={{ color: val ? 'var(--color-info)' : 'var(--color-text-muted)' }}>{val ? <Check size={16} /> : '—'}</span>,
           },
           {
             key: 'active',

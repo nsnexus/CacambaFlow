@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Moon, Sun } from 'lucide-react';
 
 const STORAGE_KEY = 'cacambaflow-theme';
 
@@ -30,7 +31,7 @@ export function ThemeToggle() {
       aria-label={isLight ? 'Mudar para tema escuro' : 'Mudar para tema claro'}
       title={isLight ? 'Tema escuro' : 'Tema claro'}
     >
-      {isLight ? '🌙' : '☀️'}
+      {isLight ? <Moon size={16} /> : <Sun size={16} />}
     </button>
   );
 }

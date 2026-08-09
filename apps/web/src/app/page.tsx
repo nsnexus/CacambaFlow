@@ -4,6 +4,18 @@ import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/firebase/server';
 import { WhatsAppButton } from '@/components/ui/whatsapp-button';
+import {
+  Package,
+  Radar,
+  Truck,
+  BarChart3,
+  Smartphone,
+  Container,
+  CheckCircle2,
+  Building2,
+  ClipboardList,
+  type LucideIcon,
+} from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'CaçambaFlow — Gestão operacional para locadoras de caçambas',
@@ -11,61 +23,61 @@ export const metadata: Metadata = {
     'Controle pedidos, despacho, motoristas e caçambas em campo com rastreamento em tempo real. Do pedido à cobrança, tudo em um só sistema.',
 };
 
-const HOW_IT_WORKS = [
+const HOW_IT_WORKS: { step: string; icon: LucideIcon; title: string; text: string }[] = [
   {
     step: '01',
-    icon: '📦',
+    icon: Package,
     title: 'Pedido entra no sistema',
     text: 'Cadastre cliente, obra e o tipo de atendimento (entrega, troca ou coleta). O pedido vira um ou mais atendimentos prontos pra despacho.',
   },
   {
     step: '02',
-    icon: '🗺️',
+    icon: Radar,
     title: 'Despacho pro motorista certo',
     text: 'Atribua motorista, veículo e caçamba direto no quadro de atendimentos. A rota do dia aparece automaticamente no app de cada motorista.',
   },
   {
     step: '03',
-    icon: '🚛',
+    icon: Truck,
     title: 'Execução em campo, com prova',
     text: 'O motorista segue a rota pelo app — inicia, chega, executa e conclui, com foto e localização GPS em cada etapa. Funciona mesmo sem internet.',
   },
   {
     step: '04',
-    icon: '📊',
+    icon: BarChart3,
     title: 'Visão em tempo real e cobrança',
     text: 'Acompanhe a frota ao vivo no mapa, veja o status de cada caçamba em campo e feche o faturamento do mês com relatórios prontos.',
   },
 ];
 
-const FEATURES = [
+const FEATURES: { icon: LucideIcon; title: string; text: string }[] = [
   {
-    icon: '🗺️',
+    icon: Radar,
     title: 'Centro de Controle em tempo real',
     text: 'Mapa ao vivo com a posição de cada motorista em campo, atualizado por telemetria do app.',
   },
   {
-    icon: '📱',
+    icon: Smartphone,
     title: 'App do motorista, feito pro campo',
     text: 'Rota do dia, histórico de atendimentos, navegação até o local em um toque e captura de evidências — tudo pensado pra quem trabalha na rua.',
   },
   {
-    icon: '🪣',
+    icon: Container,
     title: 'Gestão de caçambas',
     text: 'Saiba exatamente quais caçambas estão disponíveis, locadas e onde cada uma está, com mapa dedicado.',
   },
   {
-    icon: '✅',
+    icon: CheckCircle2,
     title: 'Evidência em cada etapa',
     text: 'Foto e geolocalização anexadas automaticamente à entrega, troca ou coleta — sem depender de papel ou WhatsApp.',
   },
   {
-    icon: '📈',
+    icon: BarChart3,
     title: 'Relatórios operacionais e financeiros',
     text: 'Taxa de conclusão, ranking de motoristas, faturado e em aberto no mês, tudo num só painel.',
   },
   {
-    icon: '🏢',
+    icon: Building2,
     title: 'Pronto pra crescer',
     text: 'Estrutura multi-empresa: gerencie mais de uma filial ou operação a partir da mesma conta.',
   },
@@ -140,15 +152,15 @@ export default async function LandingPage() {
                 <span className="hero__mock-dot" style={{ background: 'var(--color-success)' }} />
               </div>
               <div className="hero__mock-card">
-                <span>📋 Atendimentos hoje</span>
+                <span className="hero__mock-card-label"><ClipboardList size={15} /> Atendimentos hoje</span>
                 <strong>24</strong>
               </div>
               <div className="hero__mock-card">
-                <span>🚛 Motoristas online</span>
+                <span className="hero__mock-card-label"><Truck size={15} /> Motoristas online</span>
                 <strong style={{ color: 'var(--color-success)' }}>8</strong>
               </div>
               <div className="hero__mock-card">
-                <span>🪣 Caçambas em campo</span>
+                <span className="hero__mock-card-label"><Container size={15} /> Caçambas em campo</span>
                 <strong>132</strong>
               </div>
               <div className="hero__mock-bars">
@@ -175,7 +187,7 @@ export default async function LandingPage() {
             {HOW_IT_WORKS.map((s) => (
               <div className="step-card" key={s.step}>
                 <span className="step-card__number">{s.step}</span>
-                <span className="step-card__icon">{s.icon}</span>
+                <span className="step-card__icon"><s.icon size={24} /></span>
                 <h3>{s.title}</h3>
                 <p>{s.text}</p>
               </div>
@@ -194,7 +206,7 @@ export default async function LandingPage() {
           <div className="features">
             {FEATURES.map((f) => (
               <div className="feature-card" key={f.title}>
-                <span className="feature-card__icon">{f.icon}</span>
+                <span className="feature-card__icon"><f.icon size={22} /></span>
                 <h3>{f.title}</h3>
                 <p>{f.text}</p>
               </div>
@@ -348,6 +360,7 @@ export default async function LandingPage() {
           margin-bottom: var(--space-3);
           font-size: 0.875rem;
         }
+        .hero__mock-card-label { display: flex; align-items: center; gap: 6px; color: var(--color-text-muted); }
         .hero__mock-card strong { font-size: 1.125rem; }
         .hero__mock-bars {
           display: flex;
@@ -402,7 +415,7 @@ export default async function LandingPage() {
           color: var(--color-text-disabled);
           font-family: monospace;
         }
-        .step-card__icon { font-size: 1.75rem; display: block; margin-bottom: var(--space-4); }
+        .step-card__icon { display: inline-flex; color: var(--color-primary); margin-bottom: var(--space-4); }
         .step-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: var(--space-2); }
         .step-card p { font-size: 0.875rem; color: var(--color-text-muted); line-height: 1.55; }
 
@@ -421,7 +434,6 @@ export default async function LandingPage() {
         }
         .feature-card:hover { transform: translateY(-2px); border-color: var(--color-primary); }
         .feature-card__icon {
-          font-size: 1.5rem;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -429,6 +441,7 @@ export default async function LandingPage() {
           height: 48px;
           border-radius: var(--radius-md);
           background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+          color: var(--color-primary);
           margin-bottom: var(--space-4);
         }
         .feature-card h3 { font-size: 1.0625rem; font-weight: 700; margin-bottom: var(--space-2); }

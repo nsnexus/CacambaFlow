@@ -1,6 +1,7 @@
 'use client';
 
 import { useFormState, useFormStatus } from 'react-dom';
+import { CheckCircle2 } from 'lucide-react';
 import { createLeadRequest, type LeadFormState } from '@/app/actions/leads';
 
 function SubmitButton() {
@@ -18,7 +19,7 @@ export function LeadForm() {
   if (state.success) {
     return (
       <div id="lead-form-success" role="status" style={{ textAlign: 'center', padding: 'var(--space-8) var(--space-4)' }}>
-        <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-4)' }}>✅</div>
+        <CheckCircle2 size={40} color="var(--color-success)" style={{ marginBottom: 'var(--space-4)' }} />
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 'var(--space-2)' }}>Solicitação enviada!</h2>
         <p className="text-muted text-sm">
           Recebemos os seus dados. Nosso time entra em contato em breve pra apresentar o CaçambaFlow e montar o orçamento.

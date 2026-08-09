@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { dispatchJob, unassignJob } from '@/app/actions/jobs';
+import { UserRound, Truck, Container } from 'lucide-react';
 
 type Job = any; // Em um cenário real, usaria o tipo completo do Supabase
 type Driver = { id: string; profiles: { name: string } };
@@ -88,9 +89,9 @@ export function JobBoard({ initialJobs, drivers, vehicles, assets }: JobBoardPro
       {job.drivers?.profiles && (
         <div style={{ padding: 'var(--space-2)', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div>👤 {job.drivers.profiles.name}</div>
-            {job.vehicles?.plate && <div>🚛 {job.vehicles.plate}</div>}
-            {job.assets?.identifier && <div>🪣 {job.assets.identifier}</div>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><UserRound size={13} /> {job.drivers.profiles.name}</div>
+            {job.vehicles?.plate && <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Truck size={13} /> {job.vehicles.plate}</div>}
+            {job.assets?.identifier && <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Container size={13} /> {job.assets.identifier}</div>}
           </div>
           {showUnassignBtn && (
             <button onClick={() => handleUnassign(job.id)} className="text-xs text-danger" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>

@@ -1,5 +1,7 @@
 // Componente de tabela reutilizável para todas as listas do sistema
 
+import { Inbox } from 'lucide-react';
+
 export interface Column<T> {
   key: string;
   label: string;
@@ -34,7 +36,7 @@ export function DataTable<T extends Record<string, unknown>>({
           border: '1px solid var(--color-border)',
         }}
       >
-        <div style={{ fontSize: '2rem', marginBottom: 'var(--space-2)' }}>📭</div>
+        <Inbox size={32} style={{ marginBottom: 'var(--space-2)', opacity: 0.6 }} />
         <p>{emptyMessage}</p>
       </div>
     );

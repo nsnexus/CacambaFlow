@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ForgotPasswordForm } from '@/components/auth/forgot-password-form';
 
 export const metadata: Metadata = { title: 'Esqueci minha senha — CaçambaFlow' };
@@ -9,7 +10,7 @@ export default function EsqueciSenhaPage() {
     <main className="forgot-page">
       <div className="forgot-card">
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-6)' }}>
-          <span style={{ fontSize: '1.75rem' }}>🪣</span>
+          <Image src="/logo-mark.png" alt="" width={28} height={28} />
           <span style={{ fontSize: '1.125rem', fontWeight: 700 }}>CaçambaFlow</span>
         </div>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 'var(--space-2)' }}>Esqueci minha senha</h1>

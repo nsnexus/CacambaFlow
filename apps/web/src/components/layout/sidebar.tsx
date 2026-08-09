@@ -3,21 +3,37 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard,
+  ClipboardList,
+  Package,
+  UserRound,
+  Truck,
+  Container,
+  Users,
+  Radar,
+  Camera,
+  BarChart3,
+  Building2,
+  Inbox,
+  Settings,
+  type LucideIcon,
+} from 'lucide-react';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/atendimentos', label: 'Atendimentos', icon: '📋' },
-  { href: '/pedidos', label: 'Pedidos', icon: '📦' },
-  { href: '/motoristas', label: 'Motoristas', icon: '🚛' },
-  { href: '/veiculos', label: 'Veículos', icon: '🚚' },
-  { href: '/cacambas', label: 'Caçambas', icon: '🪣' },
-  { href: '/clientes', label: 'Clientes', icon: '👥' },
-  { href: '/mapa', label: 'Centro de Controle', icon: '🗺️' },
-  { href: '/evidencias', label: 'Evidências', icon: '📷' },
-  { href: '/relatorios', label: 'Relatórios', icon: '📈' },
-  { href: '/empresas', label: 'Empresas', icon: '🏢' },
-  { href: '/solicitacoes', label: 'Solicitações', icon: '📥' },
-  { href: '/configuracoes', label: 'Configurações', icon: '⚙️' },
+const navItems: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/atendimentos', label: 'Atendimentos', icon: ClipboardList },
+  { href: '/pedidos', label: 'Pedidos', icon: Package },
+  { href: '/motoristas', label: 'Motoristas', icon: UserRound },
+  { href: '/veiculos', label: 'Veículos', icon: Truck },
+  { href: '/cacambas', label: 'Caçambas', icon: Container },
+  { href: '/clientes', label: 'Clientes', icon: Users },
+  { href: '/mapa', label: 'Centro de Controle', icon: Radar },
+  { href: '/evidencias', label: 'Evidências', icon: Camera },
+  { href: '/relatorios', label: 'Relatórios', icon: BarChart3 },
+  { href: '/empresas', label: 'Empresas', icon: Building2 },
+  { href: '/solicitacoes', label: 'Solicitações', icon: Inbox },
+  { href: '/configuracoes', label: 'Configurações', icon: Settings },
 ];
 
 export function Sidebar() {
@@ -34,6 +50,7 @@ export function Sidebar() {
         <ul role="list">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+            const Icon = item.icon;
             return (
               <li key={item.href}>
                 <Link
@@ -42,7 +59,7 @@ export function Sidebar() {
                   className={`sidebar__link ${isActive ? 'sidebar__link--active' : ''}`}
                   aria-current={isActive ? 'page' : undefined}
                 >
-                  <span className="sidebar__link-icon" aria-hidden="true">{item.icon}</span>
+                  <Icon className="sidebar__link-icon" size={18} aria-hidden="true" />
                   <span>{item.label}</span>
                 </Link>
               </li>
@@ -95,7 +112,7 @@ export function Sidebar() {
           color: var(--color-primary);
           font-weight: 600;
         }
-        .sidebar__link-icon { font-size: 1rem; width: 20px; text-align: center; }
+        .sidebar__link-icon { flex-shrink: 0; }
       `}</style>
     </aside>
   );

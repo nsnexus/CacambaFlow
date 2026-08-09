@@ -12,7 +12,7 @@ export default function LoginPage() {
     <main className="login-page">
       <div className="login-left">
         <Link href="/" className="login-brand">
-          <Image src="/logo-mark.png" alt="" width={28} height={28} />
+          <Image src="/logo-mark.png" alt="" width={40} height={40} />
           <span className="login-brand__name">CaçambaFlow</span>
         </Link>
         <div className="login-tagline">
@@ -73,9 +73,10 @@ export default function LoginPage() {
           display: flex;
           align-items: center;
           gap: var(--space-3);
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: var(--color-text);
+          font-size: 1.75rem;
+          font-weight: 800;
+          letter-spacing: -0.01em;
+          color: #ffffff;
           margin-bottom: var(--space-12);
         }
         .login-tagline h1 {

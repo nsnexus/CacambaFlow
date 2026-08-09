@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Map } from 'lucide-react';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getAssets } from '@/app/actions/assets';
@@ -22,7 +23,7 @@ export default async function CacambasPage() {
         </div>
         <div className="flex gap-2">
           <Link id="btn-mapa-cacambas" href="/cacambas/mapa" className="btn btn--secondary">
-            🗺️ Ver no Mapa
+            <Map size={16} /> Ver no Mapa
           </Link>
           <Link id="btn-nova-cacamba" href="/cacambas/nova" className="btn btn--primary">
             + Nova Caçamba

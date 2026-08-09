@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Search } from 'lucide-react';
 
 const STATE_NAME_TO_UF: Record<string, string> = {
   'acre': 'AC', 'alagoas': 'AL', 'amapá': 'AP', 'amapa': 'AP', 'amazonas': 'AM',
@@ -87,7 +88,7 @@ export function AddressSearch({ onSelect }: { onSelect: (result: AddressSearchRe
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(e); }}
         />
         <button type="button" onClick={handleSearch} className="btn btn--secondary" disabled={loading} style={{ whiteSpace: 'nowrap' }}>
-          {loading ? 'Buscando...' : '🔍 Buscar'}
+          {loading ? 'Buscando...' : <><Search size={16} /> Buscar</>}
         </button>
       </div>
 
