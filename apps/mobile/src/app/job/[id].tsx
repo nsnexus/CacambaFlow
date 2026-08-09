@@ -135,7 +135,13 @@ export default function JobDetailScreen() {
       setJob({ ...job, status: next });
 
       if (next === 'EM_ROTA') {
-        startLocationTracking().catch((e) => console.warn('[Job] rastreamento não iniciado:', e.message));
+        startLocationTracking().catch((e) => {
+          console.warn('[Job] rastreamento não iniciado:', e.message);
+          Alert.alert(
+            'Rastreamento não iniciado',
+            'Não foi possível ativar o GPS: ' + e.message + '\n\nVerifique se a permissão de localização do app está como "Permitir o tempo todo" nas configurações do Android.'
+          );
+        });
       }
       if (next === 'CONCLUIDO') {
         stopLocationTracking().catch(() => {});
