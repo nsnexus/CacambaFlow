@@ -184,3 +184,129 @@ export async function updateAssetStatus(assetId: string, status: 'DISPONIVEL' | 
   revalidatePath('/cacambas');
   revalidatePath(`/cacambas/${assetId}`);
 }
+
+// --- Entrega / coleta (para saber quais caçambas estão em campo e onde) ---
+
+export async function getCustomersWithAddresses() {
+  const { tenantId } = await requireUserAndTenant();
+
+  const customersSnap = await adminDb.collection('customers')
+    .where('tenant_id', '==', tenantId)
+    .where('status', '==', 'ATIVO')
+    .get();
+
+  const customers = await Promise.all(customersSnap.docs.map(async (custDoc) => {
+    const addrSnap = await custDoc.ref.collection('addresses').where('status', '==', 'ATIVO').get();
+    return {
+      id: custDoc.id,
+      name: custDoc.data().name,
+      addresses: addrSnap.docs.map(a => ({ id: a.id, ...a.data() })),
+    };
+  }));
+
+  return customers;
+}
+
+const deliverAssetSchema = z.object({
+  customer_id: z.string().min(1, 'Cliente obrigatório'),
+  address_id: z.string().min(1, 'Obra obrigatória'),
+  delivered_at: z.string().min(1, 'Data de entrega obrigatória'),
+  expected_return_date: z.string().optional(),
+});
+
+export type DeliverAssetFormState = {
+  errors?: Partial<Record<keyof z.infer<typeof deliverAssetSchema>, string[]>>;
+  message?: string;
+};
+
+export async function deliverAsset(
+  assetId: string,
+  prevState: DeliverAssetFormState,
+  formData: FormData
+): Promise<DeliverAssetFormState> {
+  const parsed = deliverAssetSchema.safeParse({
+    customer_id: formData.get('customer_id') as string,
+    address_id: formData.get('address_id') as string,
+    delivered_at: formData.get('delivered_at') as string,
+    expected_return_date: formData.get('expected_return_date') as string,
+  });
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  try {
+    await requireUserAndTenant();
+  } catch (e) {
+    redirect('/login');
+  }
+
+  try {
+    await adminDb.collection('assets').doc(assetId).update({
+      status: 'LOCADA',
+      customer_id: parsed.data.customer_id,
+      address_id: parsed.data.address_id,
+      delivered_at: parsed.data.delivered_at,
+      expected_return_date: parsed.data.expected_return_date || null,
+    });
+  } catch (error: any) {
+    return { message: `Erro ao registrar entrega: ${error.message}` };
+  }
+
+  revalidatePath('/cacambas');
+  revalidatePath(`/cacambas/${assetId}`);
+  revalidatePath('/cacambas/mapa');
+  redirect(`/cacambas/${assetId}`);
+}
+
+export async function returnAsset(assetId: string) {
+  await requireUserAndTenant();
+
+  await adminDb.collection('assets').doc(assetId).update({
+    status: 'DISPONIVEL',
+    customer_id: null,
+    address_id: null,
+    delivered_at: null,
+    expected_return_date: null,
+  });
+
+  revalidatePath('/cacambas');
+  revalidatePath(`/cacambas/${assetId}`);
+  revalidatePath('/cacambas/mapa');
+}
+
+// Todas as caçambas atualmente entregues (LOCADA), com endereço e cliente
+// resolvidos — usado na tela de mapa de caçambas.
+export async function getDeliveredAssets() {
+  const { tenantId } = await requireUserAndTenant();
+
+  const snapshot = await adminDb.collection('assets')
+    .where('tenant_id', '==', tenantId)
+    .where('status', '==', 'LOCADA')
+    .get();
+
+  const data = await Promise.all(snapshot.docs.map(async doc => {
+    const assetData = doc.data() as any;
+
+    let asset_types = null;
+    if (assetData.asset_type_id) {
+      const typeDoc = await adminDb.collection('asset_types').doc(assetData.asset_type_id).get();
+      if (typeDoc.exists) asset_types = typeDoc.data();
+    }
+
+    let customer = null;
+    let address = null;
+    if (assetData.customer_id) {
+      const custDoc = await adminDb.collection('customers').doc(assetData.customer_id).get();
+      if (custDoc.exists) customer = custDoc.data();
+
+      if (assetData.address_id) {
+        const addrDoc = await adminDb.collection('customers').doc(assetData.customer_id).collection('addresses').doc(assetData.address_id).get();
+        if (addrDoc.exists) address = { id: addrDoc.id, ...addrDoc.data() };
+      }
+    }
+
+    return { id: doc.id, ...assetData, asset_types, customer, address };
+  }));
+
+  return data;
+}

@@ -20,9 +20,14 @@ export default async function CacambasPage() {
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Caçambas</h1>
           <p className="text-muted text-sm">{assets.length} ativo(s) no total</p>
         </div>
-        <Link id="btn-nova-cacamba" href="/cacambas/nova" className="btn btn--primary">
-          + Nova Caçamba
-        </Link>
+        <div className="flex gap-2">
+          <Link id="btn-mapa-cacambas" href="/cacambas/mapa" className="btn btn--secondary">
+            🗺️ Ver no Mapa
+          </Link>
+          <Link id="btn-nova-cacamba" href="/cacambas/nova" className="btn btn--primary">
+            + Nova Caçamba
+          </Link>
+        </div>
       </div>
 
       {/* Resumo rápido */}

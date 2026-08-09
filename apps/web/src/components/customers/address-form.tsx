@@ -83,6 +83,25 @@ export function AddressForm({ customerId }: { customerId: string }) {
       </div>
 
       <div className="form-section">
+        <h2 className="form-section__title">Coordenadas (para aparecer no mapa)</h2>
+        <p className="text-muted text-xs" style={{ marginBottom: 'var(--space-3)' }}>
+          Opcional. Abra o endereço no{' '}
+          <a href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>Google Maps</a>
+          , clique com o botão direito no ponto exato e copie os dois números que aparecem.
+        </p>
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="label" htmlFor="address-latitude">Latitude</label>
+            <input id="address-latitude" name="latitude" type="text" inputMode="decimal" className="input" placeholder="-23.5505" />
+          </div>
+          <div className="form-group">
+            <label className="label" htmlFor="address-longitude">Longitude</label>
+            <input id="address-longitude" name="longitude" type="text" inputMode="decimal" className="input" placeholder="-46.6333" />
+          </div>
+        </div>
+      </div>
+
+      <div className="form-section">
         <h2 className="form-section__title">Acesso e Contato Local</h2>
         <div className="form-grid">
           <div className="form-group">

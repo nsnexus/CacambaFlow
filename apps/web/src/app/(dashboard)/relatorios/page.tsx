@@ -5,6 +5,23 @@ import { DataTable } from '@/components/ui/data-table';
 
 export const metadata: Metadata = { title: 'Relatórios — CaçambaFlow' };
 
+const STATUS_BAR_COLORS: Record<string, string> = {
+  RASCUNHO: 'var(--color-status-cancelado)',
+  PENDENTE: 'var(--color-status-pendente)',
+  ATRIBUIDO: 'var(--color-status-atribuido)',
+  EM_ROTA: 'var(--color-status-em-rota)',
+  NO_LOCAL: 'var(--color-status-no-local)',
+  EM_EXECUCAO: 'var(--color-status-em-execucao)',
+  CONCLUIDO_LOCAL: 'var(--color-status-em-execucao)',
+  SINCRONIZANDO: 'var(--color-status-atribuido)',
+  CONCLUIDO: 'var(--color-status-concluido)',
+  FALHADO: 'var(--color-status-falhado)',
+  REAGENDADO: 'var(--color-status-pendente)',
+  CANCELADO: 'var(--color-status-cancelado)',
+  REABERTO: 'var(--color-status-pendente)',
+  ERRO_SYNC: 'var(--color-status-falhado)',
+};
+
 export default async function RelatoriosPage({
   searchParams,
 }: {
@@ -71,7 +88,7 @@ export default async function RelatoriosPage({
                     <div style={{
                       height: '100%',
                       width: `${(count / maxStatusCount) * 100}%`,
-                      background: 'var(--color-primary)',
+                      background: STATUS_BAR_COLORS[status] ?? 'var(--color-primary)',
                       borderRadius: 'var(--radius-full)',
                     }} />
                   </div>
