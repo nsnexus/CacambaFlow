@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { DataTable } from '@/components/ui/data-table';
+import { getEvidences } from '@/app/actions/evidences';
 
 export const metadata: Metadata = { title: 'Evidências — CaçambaFlow' };
 
@@ -12,11 +12,6 @@ const EVIDENCE_LABELS: Record<string, string> = {
   ASSINATURA: 'Assinatura',
   DOCUMENTO: 'Documento Anexo',
 };
-
-// TODO: Migrar para Firebase Storage + Firestore
-async function getEvidences() {
-  return [] as any[];
-}
 
 
 export default async function EvidenciasPage() {
@@ -36,11 +31,11 @@ export default async function EvidenciasPage() {
           <div key={item.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
             {/* Imagem */}
             <div style={{ width: '100%', height: '200px', backgroundColor: 'var(--color-surface-2)', position: 'relative' }}>
-              {item.signedUrl ? (
+              {item.download_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img 
-                  src={item.signedUrl} 
-                  alt={item.evidence_type} 
+                <img
+                  src={item.download_url}
+                  alt={item.evidence_type}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (

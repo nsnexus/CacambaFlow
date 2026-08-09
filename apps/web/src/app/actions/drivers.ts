@@ -131,6 +131,39 @@ export async function createDriver(
   redirect('/motoristas');
 }
 
+// --- Buscar motorista por ID ---
+export async function getDriverById(driverId: string) {
+  const { tenantId } = await requireUserAndTenant();
+
+  const doc = await adminDb.collection('drivers').doc(driverId).get();
+  if (!doc.exists) throw new Error('Motorista não encontrado');
+
+  const data = doc.data() as any;
+  if (data.tenant_id !== tenantId) throw new Error('Sem permissão');
+
+  let profileData = {};
+  if (data.profile_id) {
+    const profileDoc = await adminDb.collection('profiles').doc(data.profile_id).get();
+    if (profileDoc.exists) profileData = profileDoc.data() || {};
+  }
+
+  const jobsSnap = await adminDb.collectionGroup('jobs')
+    .where('tenant_id', '==', tenantId)
+    .where('assigned_driver_id', '==', driverId)
+    .orderBy('scheduled_date', 'desc')
+    .limit(10)
+    .get();
+
+  const recentJobs = jobsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  return {
+    id: doc.id,
+    ...data,
+    profiles: profileData,
+    recentJobs,
+  };
+}
+
 // --- Atualizar status do motorista ---
 export async function updateDriverStatus(driverId: string, status: 'ATIVO' | 'INATIVO') {
   await requireUserAndTenant();

@@ -2,25 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { getAssets } from '@/app/actions/assets';
 
 export const metadata: Metadata = { title: 'Caçambas — CaçambaFlow' };
-
-import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
-
-// TODO: Migrar para Firestore
-async function getAssets() {
-  const { tenantId } = await requireUserAndTenant();
-  const snapshot = await adminDb.collection('assets')
-    .where('tenant_id', '==', tenantId)
-    .get();
-    
-  const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Record<string, any>));
-  return data.sort((a, b) => {
-    const timeA = a.created_at?._seconds || 0;
-    const timeB = b.created_at?._seconds || 0;
-    return timeB - timeA;
-  });
-}
 
 export default async function CacambasPage() {
   const assets = await getAssets();

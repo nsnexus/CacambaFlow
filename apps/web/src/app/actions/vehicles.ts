@@ -85,6 +85,27 @@ export async function createVehicle(
   redirect('/veiculos');
 }
 
+export async function getVehicleById(vehicleId: string) {
+  const { tenantId } = await requireUserAndTenant();
+
+  const doc = await adminDb.collection('vehicles').doc(vehicleId).get();
+  if (!doc.exists) throw new Error('Veículo não encontrado');
+
+  const data = doc.data() as any;
+  if (data.tenant_id !== tenantId) throw new Error('Sem permissão');
+
+  const jobsSnap = await adminDb.collectionGroup('jobs')
+    .where('tenant_id', '==', tenantId)
+    .where('assigned_vehicle_id', '==', vehicleId)
+    .orderBy('scheduled_date', 'desc')
+    .limit(10)
+    .get();
+
+  const recentJobs = jobsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  return { id: doc.id, ...data, recentJobs };
+}
+
 export async function updateVehicleStatus(vehicleId: string, status: 'ATIVO' | 'MANUTENCAO' | 'INATIVO') {
   await requireUserAndTenant();
   

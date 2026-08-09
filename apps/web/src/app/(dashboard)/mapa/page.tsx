@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = { title: 'Centro de Controle — CaçambaFlow' };
 
 import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
+import { FleetMapLoader } from '@/components/map/fleet-map-loader';
 
 // TODO: Migrar para Firestore Realtime
 async function getLatestLocations() {
@@ -80,34 +81,8 @@ export default async function MapaPage() {
         </div>
 
         {/* Área do Mapa Principal */}
-        <div style={{ flex: 1, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-          
-          {/* Placeholder visual Premium para o Mapa (Substituído no futuro por Google Maps / Leaflet) */}
-          <div style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
-            <div style={{ fontSize: '4rem', marginBottom: 'var(--space-4)' }}>🗺️</div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text)', marginBottom: 'var(--space-2)' }}>Integração de Mapa Pendente</h3>
-            <p style={{ maxWidth: '400px', margin: '0 auto', lineHeight: 1.5 }}>
-              A telemetria já está sendo gravada no banco de dados. Para visualização gráfica, configure a chave de API do provedor de mapas (Google Maps / Mapbox) no arquivo `.env`.
-            </p>
-          </div>
-
-          {/* Marcadores Simulados em cima do placeholder para efeito estético */}
-          {telemetry.map((t, idx) => (
-            <div key={idx} style={{
-              position: 'absolute',
-              top: `${Math.floor(Math.random() * 60 + 20)}%`, // Random dummy position
-              left: `${Math.floor(Math.random() * 60 + 20)}%`, // Random dummy position
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}>
-              <div style={{ background: 'var(--color-surface)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, border: '1px solid var(--color-border)', marginBottom: '4px', whiteSpace: 'nowrap' }}>
-                {t.driver.profiles.name}
-              </div>
-              <div style={{ width: 16, height: 16, background: 'var(--color-primary)', borderRadius: 8, border: '2px solid white', boxShadow: '0 0 10px rgba(0,0,0,0.5)' }} />
-            </div>
-          ))}
-          
+        <div style={{ flex: 1, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+          <FleetMapLoader telemetry={telemetry as any} />
         </div>
       </div>
     </div>

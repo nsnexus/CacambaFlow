@@ -17,6 +17,32 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "scheduled_date", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "jobs",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "tenant_id", "order": "ASCENDING" },
+        { "fieldPath": "assigned_driver_id", "order": "ASCENDING" },
+        { "fieldPath": "scheduled_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "jobs",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "tenant_id", "order": "ASCENDING" },
+        { "fieldPath": "assigned_vehicle_id", "order": "ASCENDING" },
+        { "fieldPath": "scheduled_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "jobs",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "tenant_id", "order": "ASCENDING" },
+        { "fieldPath": "scheduled_date", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

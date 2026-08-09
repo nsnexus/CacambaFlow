@@ -10,25 +10,28 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@cacambaflow/types": "*",
+    "@hookform/resolvers": "^3.6.0",
+    "@tanstack/react-query": "^5.40.0",
+    "date-fns": "^3.6.0",
+    "firebase": "^10.12.0",
+    "firebase-admin": "^12.1.0",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.396.0",
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "@tanstack/react-query": "^5.40.0",
-    "firebase": "^10.12.0",
-    "firebase-admin": "^12.1.0",
-    "zod": "^3.23.0",
     "react-hook-form": "^7.52.0",
-    "@hookform/resolvers": "^3.6.0",
-    "date-fns": "^3.6.0",
-    "lucide-react": "^0.396.0",
-    "@cacambaflow/types": "*"
+    "react-leaflet": "^4.2.1",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.22",
+    "@types/node": "^20.14.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
-    "@types/node": "^20.14.0",
-    "typescript": "^5.4.0",
     "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.0"
+    "eslint-config-next": "^14.2.0",
+    "typescript": "^5.4.0"
   }
 }
