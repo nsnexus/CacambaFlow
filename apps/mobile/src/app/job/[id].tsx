@@ -11,11 +11,12 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import * as Location from 'expo-location';
 import { db } from '../../lib/firebase';
 import { captureEvidence } from '../../services/camera';
 import { startLocationTracking, stopLocationTracking } from '../../services/location';
+import { openNavigationApp } from '../../services/navigation';
 import { theme } from '../../constants/theme';
 import type { JobStatus } from '@cacambaflow/types';
 
@@ -33,6 +34,9 @@ type JobDetail = {
   assignedAssetId: string | null;
   customerId: string | null;
   addressId: string | null;
+  tenantId: string | null;
+  addressLatitude: number | null;
+  addressLongitude: number | null;
 };
 
 const NEXT_STEP: Partial<Record<JobStatus, { label: string; next: JobStatus }>> = {
@@ -75,6 +79,8 @@ export default function JobDetailScreen() {
       let accessNotes: string | null = null;
       let customerId: string | null = null;
       let addressId: string | null = null;
+      let addressLatitude: number | null = null;
+      let addressLongitude: number | null = null;
 
       const orderSnap = await getDoc(doc(db, 'orders', orderId));
       if (orderSnap.exists()) {
@@ -93,6 +99,8 @@ export default function JobDetailScreen() {
               address = `${a.street}, ${a.number} - ${a.district}`;
               city = a.city;
               accessNotes = a.access_notes || null;
+              addressLatitude = a.latitude ?? null;
+              addressLongitude = a.longitude ?? null;
             }
           }
         }
@@ -110,6 +118,9 @@ export default function JobDetailScreen() {
         assignedAssetId: jobData.assigned_asset_id || null,
         customerId,
         addressId,
+        tenantId: jobData.tenant_id || null,
+        addressLatitude,
+        addressLongitude,
       });
 
       // where('tenant_id', ...) obrigatório: as regras do Firestore exigem
@@ -175,6 +186,42 @@ export default function JobDetailScreen() {
             Alert.alert(
               'Caçamba não localizada no mapa',
               'O atendimento foi concluído, mas não consegui capturar sua localização pra atualizar a caçamba no mapa. Você pode registrar manualmente pelo painel web depois.'
+            );
+          }
+        } else if (job.job_type === 'COLETA' && job.customerId && job.addressId && job.tenantId) {
+          try {
+            // Coleta não tem asset pré-vinculado (é atribuído por endereço/cliente
+            // no momento do despacho) — localiza a caçamba LOCADA nesse endereço.
+            const assetsSnap = await getDocs(query(
+              collection(db, 'assets'),
+              where('tenant_id', '==', job.tenantId),
+              where('customer_id', '==', job.customerId),
+              where('address_id', '==', job.addressId),
+              where('status', '==', 'LOCADA'),
+              limit(1)
+            ));
+
+            if (!assetsSnap.empty) {
+              await updateDoc(assetsSnap.docs[0].ref, {
+                status: 'DISPONIVEL',
+                customer_id: null,
+                address_id: null,
+                delivered_at: null,
+                expected_return_date: null,
+                delivery_latitude: null,
+                delivery_longitude: null,
+              });
+            } else {
+              Alert.alert(
+                'Caçamba não encontrada',
+                'O atendimento foi concluído, mas não encontrei uma caçamba locada nesse endereço pra liberar. Verifique manualmente pelo painel web.'
+              );
+            }
+          } catch (e: any) {
+            console.warn('[Job] não foi possível liberar a caçamba:', e.message);
+            Alert.alert(
+              'Caçamba não liberada',
+              'O atendimento foi concluído, mas não consegui atualizar a caçamba pra "Disponível". Verifique manualmente pelo painel web.'
             );
           }
         }
@@ -251,6 +298,15 @@ export default function JobDetailScreen() {
         <Text style={styles.text}>📍 {job.address}</Text>
         <Text style={styles.textMuted}>{job.city}</Text>
         {job.accessNotes ? <Text style={styles.textMuted}>Obs. de acesso: {job.accessNotes}</Text> : null}
+
+        {job.addressLatitude != null && job.addressLongitude != null && (
+          <TouchableOpacity
+            style={styles.navigateButton}
+            onPress={() => openNavigationApp(job.addressLatitude!, job.addressLongitude!, job.customerName)}
+          >
+            <Text style={styles.navigateButtonText}>🧭 Navegar até o local</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -371,6 +427,19 @@ const styles = StyleSheet.create({
   textMuted: {
     color: theme.colors.textMuted,
     fontSize: 13,
+  },
+  navigateButton: {
+    marginTop: theme.spacing.md,
+    backgroundColor: theme.colors.surfaceHighlight,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  navigateButtonText: {
+    color: theme.colors.text,
+    fontWeight: '600',
   },
   button: {
     backgroundColor: theme.colors.primary,

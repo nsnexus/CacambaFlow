@@ -90,13 +90,14 @@ service cloud.firestore {
     
     // Caçambas (unidades físicas). O painel web gerencia o cadastro via
     // Admin SDK; o app mobile só pode marcar como entregue/localizada ao
-    // concluir um atendimento de entrega/troca.
+    // concluir um atendimento de entrega/troca, ou liberada (disponível)
+    // ao concluir uma coleta.
     match /assets/{assetId} {
       allow read: if isAuthenticated() && isSameTenant(resource.data);
       allow update: if isAuthenticated()
                     && isSameTenant(resource.data)
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['status', 'customer_id', 'address_id', 'delivered_at', 'delivery_latitude', 'delivery_longitude']);
+                       .hasOnly(['status', 'customer_id', 'address_id', 'delivered_at', 'expected_return_date', 'delivery_latitude', 'delivery_longitude']);
       allow create, delete: if false;
     }
 

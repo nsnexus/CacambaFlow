@@ -2,12 +2,19 @@ import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { orderBy, where } from 'firebase/firestore';
+import { limit, orderBy, where } from 'firebase/firestore';
 import { theme } from '../../constants/theme';
 import type { JobStatus } from '@cacambaflow/types';
 import { getCurrentDriver, fetchDriverJobs, TERMINAL_STATUSES, type JobCardData } from '../../services/jobs';
 
-export default function HomeScreen() {
+const HISTORY_LIMIT = 50;
+
+function formatDate(isoDate: string) {
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+export default function HistoryScreen() {
   const router = useRouter();
   const [jobs, setJobs] = useState<JobCardData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,17 +28,15 @@ export default function HomeScreen() {
         return;
       }
 
-      const today = new Date().toISOString().split('T')[0];
-
       const jobsList = await fetchDriverJobs(driver.driverId, driver.tenantId, [
-        where('scheduled_date', '==', today),
-        orderBy('sequence_number', 'asc'),
+        orderBy('scheduled_date', 'desc'),
+        limit(HISTORY_LIMIT),
       ]);
 
-      // Corridas já concluídas/falhadas/canceladas saem daqui e vão para o Histórico.
-      setJobs(jobsList.filter((job) => !TERMINAL_STATUSES.includes(job.status)));
+      // Só corridas já encerradas entram no histórico; as ativas ficam em "Minha Rota".
+      setJobs(jobsList.filter((job) => TERMINAL_STATUSES.includes(job.status)));
     } catch (error: any) {
-      Alert.alert('Erro ao carregar rota', error.message);
+      Alert.alert('Erro ao carregar histórico', error.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -50,14 +55,10 @@ export default function HomeScreen() {
   };
 
   const getStatusColor = (status: JobStatus) => {
-    switch(status) {
-      case 'ATRIBUIDO': return theme.colors.info;
-      case 'EM_ROTA': return theme.colors.warning;
-      case 'NO_LOCAL': return theme.colors.primary;
-      case 'EM_EXECUCAO': return theme.colors.primaryDark;
-      case 'CONCLUIDO_LOCAL':
+    switch (status) {
       case 'CONCLUIDO': return theme.colors.success;
       case 'FALHADO': return theme.colors.danger;
+      case 'CANCELADO': return theme.colors.textMuted;
       default: return theme.colors.textMuted;
     }
   };
@@ -74,6 +75,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      <Text style={styles.dateText}>{formatDate(item.scheduled_date)}</Text>
       <Text style={styles.jobType}>{item.job_type}</Text>
 
       <View style={styles.customerInfo}>
@@ -90,9 +92,9 @@ export default function HomeScreen() {
     <View style={styles.container}>
       {jobs.length === 0 && !loading ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>📭</Text>
-          <Text style={styles.emptyTitle}>Sua rota está vazia</Text>
-          <Text style={styles.emptySub}>Nenhum serviço atribuído para hoje.</Text>
+          <Text style={styles.emptyIcon}>🗂️</Text>
+          <Text style={styles.emptyTitle}>Nenhuma corrida no histórico</Text>
+          <Text style={styles.emptySub}>As corridas concluídas, falhadas ou canceladas aparecem aqui.</Text>
         </View>
       ) : (
         <FlatList
@@ -150,6 +152,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
+  dateText: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    marginBottom: theme.spacing.xs,
+  },
   jobType: {
     color: theme.colors.primaryLight,
     fontSize: 18,
@@ -195,5 +202,6 @@ const styles = StyleSheet.create({
   emptySub: {
     color: theme.colors.textMuted,
     textAlign: 'center',
+    paddingHorizontal: theme.spacing.md,
   },
 });
