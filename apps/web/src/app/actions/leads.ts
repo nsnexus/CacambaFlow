@@ -1,6 +1,7 @@
 'use server';
 
 import { adminDb, requireSuperAdmin } from '@/lib/firebase/server';
+import { sendLeadNotification } from '@/lib/email';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
 
@@ -52,6 +53,14 @@ export async function createLeadRequest(
     });
   } catch (error: any) {
     return { message: `Erro ao enviar solicitação: ${error.message}` };
+  }
+
+  // A notificação por e-mail é só um aviso — se falhar, o lead já está
+  // salvo no Firestore e continua visível em /solicitacoes de qualquer forma.
+  try {
+    await sendLeadNotification(parsed.data);
+  } catch (error: any) {
+    console.error('[leads] falha ao enviar notificação por e-mail:', error.message);
   }
 
   return { success: true };
