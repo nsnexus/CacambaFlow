@@ -1,0 +1,12 @@
+node_modules
+.next
+.turbo
+.expo
+dist
+build
+out
+*.tsbuildinfo
+apps/mobile/android
+apps/mobile/ios
+apps/mobile/.expo
+.git
