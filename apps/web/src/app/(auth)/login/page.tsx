@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import Image from 'next/image';
 import { LoginForm } from '@/components/auth/login-form';
 
 export const metadata: Metadata = {
@@ -9,10 +11,10 @@ export default function LoginPage() {
   return (
     <main className="login-page">
       <div className="login-left">
-        <div className="login-brand">
-          <span className="login-brand__icon">🪣</span>
+        <Link href="/" className="login-brand">
+          <Image src="/logo-mark.png" alt="" width={28} height={28} />
           <span className="login-brand__name">CaçambaFlow</span>
-        </div>
+        </Link>
         <div className="login-tagline">
           <h1>Gestão operacional de ponta a ponta</h1>
           <p>Controle entregas, coletas e motoristas em tempo real. Funciona mesmo sem internet.</p>
@@ -76,7 +78,6 @@ export default function LoginPage() {
           color: var(--color-text);
           margin-bottom: var(--space-12);
         }
-        .login-brand__icon { font-size: 1.75rem; }
         .login-tagline h1 {
           font-size: 2.25rem;
           font-weight: 700;

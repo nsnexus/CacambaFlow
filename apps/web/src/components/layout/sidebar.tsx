@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 
 const navItems = [
@@ -15,6 +16,7 @@ const navItems = [
   { href: '/evidencias', label: 'Evidências', icon: '📷' },
   { href: '/relatorios', label: 'Relatórios', icon: '📈' },
   { href: '/empresas', label: 'Empresas', icon: '🏢' },
+  { href: '/solicitacoes', label: 'Solicitações', icon: '📥' },
   { href: '/configuracoes', label: 'Configurações', icon: '⚙️' },
 ];
 
@@ -24,7 +26,7 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
-        <span className="sidebar__brand-icon">🪣</span>
+        <Image src="/logo-mark.png" alt="" width={22} height={22} className="sidebar__brand-icon" />
         <span className="sidebar__brand-name">CaçambaFlow</span>
       </div>
 
@@ -69,7 +71,7 @@ export function Sidebar() {
           border-bottom: 1px solid var(--color-border);
           height: var(--header-height);
         }
-        .sidebar__brand-icon { font-size: 1.25rem; }
+        .sidebar__brand-icon { border-radius: var(--radius-sm); }
         .sidebar__nav { padding: var(--space-3) 0; flex: 1; }
         .sidebar__nav ul { list-style: none; }
         .sidebar__link {

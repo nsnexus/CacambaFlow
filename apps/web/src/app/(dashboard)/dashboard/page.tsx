@@ -1,22 +1,24 @@
 import type { Metadata } from 'next';
+import { getDashboardSummary } from '@/app/actions/dashboard';
 
 export const metadata: Metadata = {
   title: 'Dashboard — CaçambaFlow',
 };
 
-// Dados mock para a estrutura inicial — serão substituídos por dados reais do Supabase
-const stats = [
-  { id: 'stat-atendimentos', label: 'Atendimentos Hoje', value: '—', icon: '📋', color: 'var(--color-info)' },
-  { id: 'stat-pendentes', label: 'Pendentes', value: '—', icon: '⏳', color: 'var(--color-warning)' },
-  { id: 'stat-em-rota', label: 'Em Rota', value: '—', icon: '🚛', color: 'var(--color-status-em-rota)' },
-  { id: 'stat-concluidos', label: 'Concluídos', value: '—', icon: '✅', color: 'var(--color-success)' },
-  { id: 'stat-falhados', label: 'Falhados', value: '—', icon: '❌', color: 'var(--color-danger)' },
-  { id: 'stat-motoristas', label: 'Motoristas Online', value: '—', icon: '👤', color: 'var(--color-primary)' },
-  { id: 'stat-cacambas-livres', label: 'Caçambas Disponíveis', value: '—', icon: '🪣', color: 'var(--color-success)' },
-  { id: 'stat-cacambas-locadas', label: 'Caçambas Locadas', value: '—', icon: '📍', color: 'var(--color-info)' },
-];
+export default async function DashboardPage() {
+  const summary = await getDashboardSummary();
 
-export default function DashboardPage() {
+  const stats = [
+    { id: 'stat-atendimentos', label: 'Atendimentos Hoje', value: summary.atendimentosHoje, icon: '📋', color: 'var(--color-info)' },
+    { id: 'stat-pendentes', label: 'Pendentes', value: summary.pendentes, icon: '⏳', color: 'var(--color-warning)' },
+    { id: 'stat-em-rota', label: 'Em Rota', value: summary.emRota, icon: '🚛', color: 'var(--color-status-em-rota)' },
+    { id: 'stat-concluidos', label: 'Concluídos', value: summary.concluidos, icon: '✅', color: 'var(--color-success)' },
+    { id: 'stat-falhados', label: 'Falhados', value: summary.falhados, icon: '❌', color: 'var(--color-danger)' },
+    { id: 'stat-motoristas', label: 'Motoristas Online', value: summary.motoristasOnline, icon: '👤', color: 'var(--color-primary)' },
+    { id: 'stat-cacambas-livres', label: 'Caçambas Disponíveis', value: summary.cacambasDisponiveis, icon: '🪣', color: 'var(--color-success)' },
+    { id: 'stat-cacambas-locadas', label: 'Caçambas Locadas', value: summary.cacambasLocadas, icon: '📍', color: 'var(--color-info)' },
+  ];
+
   return (
     <div>
       <div style={{ marginBottom: 'var(--space-6)' }}>
