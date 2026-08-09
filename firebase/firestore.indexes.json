@@ -55,6 +55,14 @@
       ]
     },
     {
+      "collectionGroup": "drivers",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "profile_id", "order": "ASCENDING" },
+        { "fieldPath": "tenant_id", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "driver_locations",
       "queryScope": "COLLECTION",
       "fields": [
