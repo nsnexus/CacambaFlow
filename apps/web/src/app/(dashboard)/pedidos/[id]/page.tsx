@@ -24,7 +24,9 @@ export default async function PedidoDetailPage({ params }: { params: { id: strin
       <div className="flex items-center justify-between" style={{ marginBottom: 'var(--space-6)' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'monospace' }}>{order.order_number}</h1>
-          <p className="text-muted text-sm">Criado em {new Date(order.requested_at).toLocaleDateString('pt-BR')}</p>
+          <p className="text-muted text-sm">
+            Criado em {order.created_at?.toDate ? order.created_at.toDate().toLocaleDateString('pt-BR') : '—'}
+          </p>
         </div>
         <StatusBadge status={order.status} />
       </div>
@@ -34,7 +36,10 @@ export default async function PedidoDetailPage({ params }: { params: { id: strin
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 'var(--space-4)' }}>Cliente e Local</h2>
           <div style={{ marginBottom: 'var(--space-3)' }}>
             <p className="text-muted text-sm">Cliente</p>
-            <p style={{ fontWeight: 500 }}>{order.customers.name} <span className="text-muted">({order.customers.document})</span></p>
+            <p style={{ fontWeight: 500 }}>
+              {order.customers.name}
+              {order.customers.document && <span className="text-muted"> ({order.customers.document})</span>}
+            </p>
           </div>
           <div>
             <p className="text-muted text-sm">Endereço da Obra</p>
