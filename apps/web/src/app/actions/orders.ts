@@ -183,11 +183,12 @@ export async function createOrder(
 
   const orderNumber = generateOrderNumber();
 
+  let orderRef: FirebaseFirestore.DocumentReference;
   try {
     // Usar Batch do Firestore para atomicidade (Transação simples)
     const batch = adminDb.batch();
-    
-    const orderRef = adminDb.collection('orders').doc();
+
+    orderRef = adminDb.collection('orders').doc();
     batch.set(orderRef, {
       tenant_id: sessionData.tenantId,
       customer_id: parsed.data.customer_id,
@@ -219,11 +220,11 @@ export async function createOrder(
     });
 
     await batch.commit();
-    
-    revalidatePath('/pedidos');
-    revalidatePath('/atendimentos');
-    redirect(`/pedidos/${orderRef.id}`);
   } catch (error: any) {
     return { message: `Erro ao criar pedido: ${error.message}` };
   }
+
+  revalidatePath('/pedidos');
+  revalidatePath('/atendimentos');
+  redirect(`/pedidos/${orderRef.id}`);
 }
