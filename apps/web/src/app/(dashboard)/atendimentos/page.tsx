@@ -7,17 +7,29 @@ export const metadata: Metadata = { title: 'Despacho (Kanban) — CaçambaFlow' 
 import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { serializeFirestoreData } from '@/lib/firebase/serialize';
 
-// TODO: Migrar para Firestore - dados mock temporários
+// O board precisa do id do documento em `drivers` (é isso que dispatchJob
+// espera), não do uid do profile — por isso busca em `drivers` e resolve o
+// nome de cada um a partir do profile vinculado, igual getDrivers() faz.
 async function getResources() {
   const { tenantId } = await requireUserAndTenant();
-  
+
   const [driversSnap, vehiclesSnap] = await Promise.all([
-    adminDb.collection('profiles').where('tenant_id', '==', tenantId).where('role', '==', 'DRIVER').get(),
-    adminDb.collection('vehicles').where('tenant_id', '==', tenantId).get()
+    adminDb.collection('drivers').where('tenant_id', '==', tenantId).where('status', '==', 'ATIVO').get(),
+    adminDb.collection('vehicles').where('tenant_id', '==', tenantId).where('status', '==', 'ATIVO').get()
   ]);
 
+  const drivers = await Promise.all(driversSnap.docs.map(async (doc) => {
+    const data = doc.data();
+    let profileData: any = { name: '—' };
+    if (data.profile_id) {
+      const profileDoc = await adminDb.collection('profiles').doc(data.profile_id).get();
+      if (profileDoc.exists) profileData = profileDoc.data();
+    }
+    return { id: doc.id, profiles: profileData };
+  }));
+
   return {
-    drivers: driversSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+    drivers,
     vehicles: vehiclesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
   };
 }

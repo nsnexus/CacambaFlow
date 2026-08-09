@@ -78,11 +78,11 @@ export function JobBoard({ initialJobs, drivers, vehicles }: JobBoardProps) {
         )}
       </div>
 
-      {job.drivers && (
+      {job.drivers?.profiles && (
         <div style={{ padding: 'var(--space-2)', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div>👤 {job.drivers.profiles.name}</div>
-            {job.vehicles && <div>🚛 {job.vehicles.plate}</div>}
+            {job.vehicles?.plate && <div>🚛 {job.vehicles.plate}</div>}
           </div>
           {showUnassignBtn && (
             <button onClick={() => handleUnassign(job.id)} className="text-xs text-danger" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
