@@ -6,10 +6,12 @@ service firebase.storage {
       return request.auth != null;
     }
     
-    // Verifica se o usuário autenticado pertence ao tenant do caminho
+    // Verifica se o usuário autenticado pertence ao tenant do caminho.
+    // Usa o custom claim do token (não firestore.get() cruzando serviço —
+    // isso falhava com "unauthorized" mesmo pro tenant certo, o mesmo tipo
+    // de problema já visto nas regras do Firestore com consultas em lista).
     function isSameTenant(tenantId) {
-      return isAuthenticated()
-             && firestore.get(/databases/(default)/documents/profiles/$(request.auth.uid)).data.tenant_id == tenantId;
+      return isAuthenticated() && request.auth.token.tenant_id == tenantId;
     }
 
     // As evidências ficam em /evidences/{tenantId}/{orderId}/{jobId}/{filename}
