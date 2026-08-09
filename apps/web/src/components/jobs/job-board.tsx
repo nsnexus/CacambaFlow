@@ -7,14 +7,20 @@ import { dispatchJob, unassignJob } from '@/app/actions/jobs';
 type Job = any; // Em um cenário real, usaria o tipo completo do Supabase
 type Driver = { id: string; profiles: { name: string } };
 type Vehicle = { id: string; plate: string };
+type Asset = { id: string; identifier: string; asset_types?: { name: string; volume_m3: number } | null };
 
 interface JobBoardProps {
   initialJobs: Job[];
   drivers: Driver[];
   vehicles: Vehicle[];
+  assets: Asset[];
 }
 
-export function JobBoard({ initialJobs, drivers, vehicles }: JobBoardProps) {
+// Só entrega e troca deixam uma caçamba nova em campo — coleta é da que já
+// está lá, não precisa vincular outra.
+const JOB_TYPES_NEED_ASSET = ['ENTREGA', 'TROCA'];
+
+export function JobBoard({ initialJobs, drivers, vehicles, assets }: JobBoardProps) {
   // Para MVP, não faremos drag and drop real. Faremos modals simples/ações em linha para atribuir
   const [jobs, setJobs] = useState(initialJobs);
   const [assigningJob, setAssigningJob] = useState<string | null>(null);
@@ -31,15 +37,16 @@ export function JobBoard({ initialJobs, drivers, vehicles }: JobBoardProps) {
     const formData = new FormData(e.currentTarget);
     const driverId = formData.get('driver_id') as string;
     const vehicleId = formData.get('vehicle_id') as string;
-    
+    const assetId = formData.get('asset_id') as string;
+
     const job = jobs.find(j => j.id === assigningJob);
     if (!job?.order_id) return;
-    await dispatchJob(job.order_id, assigningJob, driverId, vehicleId);
-    
+    await dispatchJob(job.order_id, assigningJob, driverId, vehicleId, assetId || undefined);
+
     // Atualiza otimista
-    setJobs(jobs.map(j => 
-      j.id === assigningJob 
-        ? { ...j, status: 'ATRIBUIDO', drivers: drivers.find(d => d.id === driverId), vehicles: vehicles.find(v => v.id === vehicleId) }
+    setJobs(jobs.map(j =>
+      j.id === assigningJob
+        ? { ...j, status: 'ATRIBUIDO', drivers: drivers.find(d => d.id === driverId), vehicles: vehicles.find(v => v.id === vehicleId), assets: assets.find(a => a.id === assetId) }
         : j
     ));
     setAssigningJob(null);
@@ -83,6 +90,7 @@ export function JobBoard({ initialJobs, drivers, vehicles }: JobBoardProps) {
           <div>
             <div>👤 {job.drivers.profiles.name}</div>
             {job.vehicles?.plate && <div>🚛 {job.vehicles.plate}</div>}
+            {job.assets?.identifier && <div>🪣 {job.assets.identifier}</div>}
           </div>
           {showUnassignBtn && (
             <button onClick={() => handleUnassign(job.id)} className="text-xs text-danger" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -172,33 +180,51 @@ export function JobBoard({ initialJobs, drivers, vehicles }: JobBoardProps) {
       `}</style>
 
       {/* Modal simples de atribuição */}
-      {assigningJob && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div className="card" style={{ width: '400px' }}>
-            <h2 style={{ fontSize: '1.25rem', marginBottom: 'var(--space-4)' }}>Atribuir Atendimento</h2>
-            <form onSubmit={handleAssign}>
-              <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
-                <label className="label">Motorista</label>
-                <select name="driver_id" className="input" required>
-                  <option value="">Selecione...</option>
-                  {drivers.map(d => <option key={d.id} value={d.id}>{d.profiles.name}</option>)}
-                </select>
-              </div>
-              <div className="form-group" style={{ marginBottom: 'var(--space-6)' }}>
-                <label className="label">Veículo</label>
-                <select name="vehicle_id" className="input" required>
-                  <option value="">Selecione...</option>
-                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate}</option>)}
-                </select>
-              </div>
-              <div className="flex gap-4">
-                <button type="submit" className="btn btn--primary" style={{ flex: 1 }}>Confirmar Atribuição</button>
-                <button type="button" onClick={() => setAssigningJob(null)} className="btn btn--secondary">Cancelar</button>
-              </div>
-            </form>
+      {assigningJob && (() => {
+        const job = jobs.find(j => j.id === assigningJob);
+        const needsAsset = JOB_TYPES_NEED_ASSET.includes(job?.job_type);
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+            <div className="card" style={{ width: '400px' }}>
+              <h2 style={{ fontSize: '1.25rem', marginBottom: 'var(--space-4)' }}>Atribuir Atendimento</h2>
+              <form onSubmit={handleAssign}>
+                <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+                  <label className="label">Motorista</label>
+                  <select name="driver_id" className="input" required>
+                    <option value="">Selecione...</option>
+                    {drivers.map(d => <option key={d.id} value={d.id}>{d.profiles.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: needsAsset ? 'var(--space-4)' : 'var(--space-6)' }}>
+                  <label className="label">Veículo</label>
+                  <select name="vehicle_id" className="input" required>
+                    <option value="">Selecione...</option>
+                    {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate}</option>)}
+                  </select>
+                </div>
+                {needsAsset && (
+                  <div className="form-group" style={{ marginBottom: 'var(--space-6)' }}>
+                    <label className="label">Caçamba</label>
+                    <select name="asset_id" className="input">
+                      <option value="">Selecione (opcional)...</option>
+                      {assets.map(a => (
+                        <option key={a.id} value={a.id}>{a.identifier}{a.asset_types ? ` — ${a.asset_types.name}` : ''}</option>
+                      ))}
+                    </select>
+                    {assets.length === 0 && (
+                      <p className="text-muted text-xs" style={{ marginTop: 'var(--space-1)' }}>Nenhuma caçamba disponível no momento.</p>
+                    )}
+                  </div>
+                )}
+                <div className="flex gap-4">
+                  <button type="submit" className="btn btn--primary" style={{ flex: 1 }}>Confirmar Atribuição</button>
+                  <button type="button" onClick={() => setAssigningJob(null)} className="btn btn--secondary">Cancelar</button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 }

@@ -305,6 +305,13 @@ export async function getDeliveredAssets() {
       }
     }
 
+    // O GPS capturado pelo motorista na entrega é mais confiável do que a
+    // coordenada cadastrada no endereço do cliente (que pode estar errada
+    // ou nem existir) — usa ele no mapa quando disponível.
+    if (address && assetData.delivery_latitude && assetData.delivery_longitude) {
+      address = { ...address, latitude: assetData.delivery_latitude, longitude: assetData.delivery_longitude };
+    }
+
     return { id: doc.id, ...assetData, asset_types, customer, address };
   }));
 

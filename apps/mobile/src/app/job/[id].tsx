@@ -12,11 +12,14 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import * as Location from 'expo-location';
 import { db } from '../../lib/firebase';
 import { captureEvidence } from '../../services/camera';
 import { startLocationTracking, stopLocationTracking } from '../../services/location';
 import { theme } from '../../constants/theme';
 import type { JobStatus } from '@cacambaflow/types';
+
+const JOB_TYPES_NEED_ASSET = ['ENTREGA', 'TROCA'];
 
 type JobDetail = {
   id: string;
@@ -27,6 +30,9 @@ type JobDetail = {
   address: string;
   city: string;
   accessNotes: string | null;
+  assignedAssetId: string | null;
+  customerId: string | null;
+  addressId: string | null;
 };
 
 const NEXT_STEP: Partial<Record<JobStatus, { label: string; next: JobStatus }>> = {
@@ -67,10 +73,14 @@ export default function JobDetailScreen() {
       let address = '';
       let city = '';
       let accessNotes: string | null = null;
+      let customerId: string | null = null;
+      let addressId: string | null = null;
 
       const orderSnap = await getDoc(doc(db, 'orders', orderId));
       if (orderSnap.exists()) {
         const o = orderSnap.data();
+        customerId = o.customer_id || null;
+        addressId = o.address_id || null;
         if (o.customer_id) {
           const custSnap = await getDoc(doc(db, 'customers', o.customer_id));
           if (custSnap.exists()) {
@@ -97,6 +107,9 @@ export default function JobDetailScreen() {
         address,
         city,
         accessNotes,
+        assignedAssetId: jobData.assigned_asset_id || null,
+        customerId,
+        addressId,
       });
 
       // where('tenant_id', ...) obrigatório: as regras do Firestore exigem
@@ -145,6 +158,26 @@ export default function JobDetailScreen() {
       }
       if (next === 'CONCLUIDO') {
         stopLocationTracking().catch(() => {});
+
+        if (JOB_TYPES_NEED_ASSET.includes(job.job_type) && job.assignedAssetId && job.customerId && job.addressId) {
+          try {
+            const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+            await updateDoc(doc(db, 'assets', job.assignedAssetId), {
+              status: 'LOCADA',
+              customer_id: job.customerId,
+              address_id: job.addressId,
+              delivered_at: new Date().toISOString().split('T')[0],
+              delivery_latitude: loc.coords.latitude,
+              delivery_longitude: loc.coords.longitude,
+            });
+          } catch (e: any) {
+            console.warn('[Job] não foi possível registrar a localização da caçamba:', e.message);
+            Alert.alert(
+              'Caçamba não localizada no mapa',
+              'O atendimento foi concluído, mas não consegui capturar sua localização pra atualizar a caçamba no mapa. Você pode registrar manualmente pelo painel web depois.'
+            );
+          }
+        }
       }
     } catch (error: any) {
       Alert.alert('Erro ao atualizar status', error.message);

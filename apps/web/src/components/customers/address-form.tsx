@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { createAddress, type CustomerFormState } from '@/app/actions/customers';
+import { AddressSearch, type AddressSearchResult } from './address-search';
 import Link from 'next/link';
 
 function SubmitButton() {
@@ -13,8 +15,37 @@ function SubmitButton() {
   );
 }
 
+const emptyFields = {
+  street: '',
+  number: '',
+  district: '',
+  city: '',
+  state: '',
+  postal_code: '',
+  latitude: '',
+  longitude: '',
+};
+
 export function AddressForm({ customerId }: { customerId: string }) {
   const [state, action] = useFormState<CustomerFormState, FormData>(createAddress, {});
+  const [fields, setFields] = useState(emptyFields);
+
+  function handlePick(r: AddressSearchResult) {
+    setFields({
+      street: r.street,
+      number: r.number,
+      district: r.district,
+      city: r.city,
+      state: r.state,
+      postal_code: r.postal_code,
+      latitude: String(r.latitude),
+      longitude: String(r.longitude),
+    });
+  }
+
+  function setField(key: keyof typeof emptyFields) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => setFields(f => ({ ...f, [key]: e.target.value }));
+  }
 
   return (
     <form action={action} noValidate>
@@ -35,6 +66,14 @@ export function AddressForm({ customerId }: { customerId: string }) {
       )}
 
       <div className="form-section">
+        <h2 className="form-section__title">Buscar Endereço</h2>
+        <AddressSearch onSelect={handlePick} />
+        <p className="text-muted text-xs">
+          Escolha um resultado da busca pra preencher os campos abaixo automaticamente (inclusive as coordenadas do mapa), ou preencha tudo na mão.
+        </p>
+      </div>
+
+      <div className="form-section">
         <h2 className="form-section__title">Obra</h2>
         <div className="form-grid">
           <div className="form-group">
@@ -44,7 +83,7 @@ export function AddressForm({ customerId }: { customerId: string }) {
           </div>
           <div className="form-group">
             <label className="label" htmlFor="address-postal-code">CEP</label>
-            <input id="address-postal-code" name="postal_code" type="text" className="input" placeholder="00000-000" />
+            <input id="address-postal-code" name="postal_code" type="text" className="input" placeholder="00000-000" value={fields.postal_code} onChange={setField('postal_code')} />
           </div>
         </div>
       </div>
@@ -54,12 +93,12 @@ export function AddressForm({ customerId }: { customerId: string }) {
         <div className="form-grid">
           <div className="form-group">
             <label className="label" htmlFor="address-street">Logradouro *</label>
-            <input id="address-street" name="street" type="text" className="input" required placeholder="Rua das Flores" />
+            <input id="address-street" name="street" type="text" className="input" required placeholder="Rua das Flores" value={fields.street} onChange={setField('street')} />
             {state.errors?.street && <p className="form-error">{state.errors.street[0]}</p>}
           </div>
           <div className="form-group">
             <label className="label" htmlFor="address-number">Número</label>
-            <input id="address-number" name="number" type="text" className="input" placeholder="123" />
+            <input id="address-number" name="number" type="text" className="input" placeholder="123" value={fields.number} onChange={setField('number')} />
           </div>
           <div className="form-group">
             <label className="label" htmlFor="address-complement">Complemento</label>
@@ -67,16 +106,16 @@ export function AddressForm({ customerId }: { customerId: string }) {
           </div>
           <div className="form-group">
             <label className="label" htmlFor="address-district">Bairro</label>
-            <input id="address-district" name="district" type="text" className="input" placeholder="Centro" />
+            <input id="address-district" name="district" type="text" className="input" placeholder="Centro" value={fields.district} onChange={setField('district')} />
           </div>
           <div className="form-group">
             <label className="label" htmlFor="address-city">Cidade *</label>
-            <input id="address-city" name="city" type="text" className="input" required placeholder="São Paulo" />
+            <input id="address-city" name="city" type="text" className="input" required placeholder="São Paulo" value={fields.city} onChange={setField('city')} />
             {state.errors?.city && <p className="form-error">{state.errors.city[0]}</p>}
           </div>
           <div className="form-group">
             <label className="label" htmlFor="address-state">UF *</label>
-            <input id="address-state" name="state" type="text" className="input" required maxLength={2} placeholder="SP" style={{ textTransform: 'uppercase' }} />
+            <input id="address-state" name="state" type="text" className="input" required maxLength={2} placeholder="SP" style={{ textTransform: 'uppercase' }} value={fields.state} onChange={setField('state')} />
             {state.errors?.state && <p className="form-error">{state.errors.state[0]}</p>}
           </div>
         </div>
@@ -85,18 +124,18 @@ export function AddressForm({ customerId }: { customerId: string }) {
       <div className="form-section">
         <h2 className="form-section__title">Coordenadas (para aparecer no mapa)</h2>
         <p className="text-muted text-xs" style={{ marginBottom: 'var(--space-3)' }}>
-          Opcional. Abra o endereço no{' '}
+          Preenchido automaticamente ao escolher um resultado da busca acima. Se preferir preencher na mão, abra o endereço no{' '}
           <a href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>Google Maps</a>
           , clique com o botão direito no ponto exato e copie os dois números que aparecem.
         </p>
         <div className="form-grid">
           <div className="form-group">
             <label className="label" htmlFor="address-latitude">Latitude</label>
-            <input id="address-latitude" name="latitude" type="text" inputMode="decimal" className="input" placeholder="-23.5505" />
+            <input id="address-latitude" name="latitude" type="text" inputMode="decimal" className="input" placeholder="-23.5505" value={fields.latitude} onChange={setField('latitude')} />
           </div>
           <div className="form-group">
             <label className="label" htmlFor="address-longitude">Longitude</label>
-            <input id="address-longitude" name="longitude" type="text" inputMode="decimal" className="input" placeholder="-46.6333" />
+            <input id="address-longitude" name="longitude" type="text" inputMode="decimal" className="input" placeholder="-46.6333" value={fields.longitude} onChange={setField('longitude')} />
           </div>
         </div>
       </div>

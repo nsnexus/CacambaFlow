@@ -56,51 +56,83 @@ export async function getJobsForDispatch(date?: string) {
       if (vhcDoc.exists) vehicles = vhcDoc.data() || {};
     }
 
+    let assets = {};
+    if (data.assigned_asset_id) {
+      const astDoc = await adminDb.collection('assets').doc(data.assigned_asset_id).get();
+      if (astDoc.exists) assets = astDoc.data() || {};
+    }
+
     return {
       id: doc.id,
       ...data,
       orders: orderData,
       drivers,
-      vehicles
+      vehicles,
+      assets
     };
   }));
 
   return jobs;
 }
 
-export async function dispatchJob(orderId: string, jobId: string, driverId: string, vehicleId: string) {
+// Caçambas disponíveis pra vincular no despacho (só entrega/troca precisam
+// de uma unidade física — coleta usa a que já está no local).
+export async function getAvailableAssetsForDispatch() {
+  const { tenantId } = await requireUserAndTenant();
+
+  const snapshot = await adminDb.collection('assets')
+    .where('tenant_id', '==', tenantId)
+    .where('status', '==', 'DISPONIVEL')
+    .get();
+
+  const data = await Promise.all(snapshot.docs.map(async doc => {
+    const assetData = doc.data();
+    let asset_types = null;
+    if (assetData.asset_type_id) {
+      const typeDoc = await adminDb.collection('asset_types').doc(assetData.asset_type_id).get();
+      if (typeDoc.exists) asset_types = typeDoc.data();
+    }
+    return { id: doc.id, identifier: assetData.identifier, asset_types };
+  }));
+
+  return data;
+}
+
+export async function dispatchJob(orderId: string, jobId: string, driverId: string, vehicleId: string, assetId?: string) {
   await requireUserAndTenant();
-  
+
   const jobRef = adminDb.collection('orders').doc(orderId).collection('jobs').doc(jobId);
   const doc = await jobRef.get();
-  
+
   if (doc.exists && doc.data()?.status === 'PENDENTE') {
     await jobRef.update({
       assigned_driver_id: driverId,
       assigned_vehicle_id: vehicleId,
+      assigned_asset_id: assetId || null,
       status: 'ATRIBUIDO',
       published_at: new Date().toISOString(),
     });
   }
-  
+
   revalidatePath('/atendimentos');
 }
 
 export async function unassignJob(orderId: string, jobId: string) {
   await requireUserAndTenant();
-  
+
   const jobRef = adminDb.collection('orders').doc(orderId).collection('jobs').doc(jobId);
   const doc = await jobRef.get();
-  
+
   if (doc.exists && doc.data()?.status === 'ATRIBUIDO') {
     await jobRef.update({
       assigned_driver_id: null,
       assigned_vehicle_id: null,
+      assigned_asset_id: null,
       status: 'PENDENTE',
       published_at: null,
     });
   }
-  
+
   revalidatePath('/atendimentos');
 }
 

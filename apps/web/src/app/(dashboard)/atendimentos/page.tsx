@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getJobsForDispatch } from '@/app/actions/jobs';
+import { getJobsForDispatch, getAvailableAssetsForDispatch } from '@/app/actions/jobs';
 import { JobBoard } from '@/components/jobs/job-board';
 
 export const metadata: Metadata = { title: 'Despacho (Kanban) — CaçambaFlow' };
@@ -42,9 +42,10 @@ export default async function AtendimentosPage({
   // Pega a data da URL ou usa a data atual
   const dateStr = (searchParams.date as string) || new Date().toISOString().split('T')[0] || '';
   
-  const [jobs, { drivers, vehicles }] = await Promise.all([
+  const [jobs, { drivers, vehicles }, assets] = await Promise.all([
     getJobsForDispatch(dateStr),
-    getResources()
+    getResources(),
+    getAvailableAssetsForDispatch()
   ]);
 
   return (
@@ -74,6 +75,7 @@ export default async function AtendimentosPage({
         initialJobs={serializeFirestoreData(jobs) as any}
         drivers={serializeFirestoreData(drivers) as any}
         vehicles={serializeFirestoreData(vehicles) as any}
+        assets={serializeFirestoreData(assets) as any}
       />
     </div>
   );
