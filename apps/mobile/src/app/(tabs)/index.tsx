@@ -34,9 +34,17 @@ export default function HomeScreen() {
       const profileDoc = await getDoc(doc(db, 'profiles', user.uid));
       if (!profileDoc.exists()) return;
       const profile = profileDoc.data();
+      const tenantId = profile.tenant_id;
 
-      // Find driver associated with this profile
-      const driversQuery = query(collectionGroup(db, 'drivers'), where('profile_id', '==', user.uid));
+      // Find driver associated with this profile.
+      // O where('tenant_id', ...) é obrigatório aqui: as regras do Firestore
+      // checam isSameTenant(resource.data), e o Firestore só autoriza a
+      // query em lista se o mesmo campo também estiver filtrado nela.
+      const driversQuery = query(
+        collectionGroup(db, 'drivers'),
+        where('profile_id', '==', user.uid),
+        where('tenant_id', '==', tenantId)
+      );
       const driversSnap = await getDocs(driversQuery);
       if (driversSnap.empty) {
         Alert.alert('Atenção', 'Seu usuário não está vinculado a um perfil de motorista.');
@@ -50,6 +58,7 @@ export default function HomeScreen() {
         collectionGroup(db, 'jobs'),
         where('assigned_driver_id', '==', driverId),
         where('scheduled_date', '==', today),
+        where('tenant_id', '==', tenantId),
         orderBy('sequence_number', 'asc')
       );
       

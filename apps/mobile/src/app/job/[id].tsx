@@ -99,7 +99,14 @@ export default function JobDetailScreen() {
         accessNotes,
       });
 
-      const evSnap = await getDocs(query(collection(db, 'evidences'), where('job_id', '==', id)));
+      // where('tenant_id', ...) obrigatório: as regras do Firestore exigem
+      // que o mesmo campo usado em isSameTenant() esteja filtrado na query,
+      // senão a lista inteira é negada.
+      const evSnap = await getDocs(query(
+        collection(db, 'evidences'),
+        where('job_id', '==', id),
+        where('tenant_id', '==', jobData.tenant_id)
+      ));
       setEvidenceCount(evSnap.size);
     } catch (error: any) {
       Alert.alert('Erro ao carregar atendimento', error.message);

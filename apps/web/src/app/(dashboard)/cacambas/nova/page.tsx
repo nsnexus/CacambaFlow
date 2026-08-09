@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAssetTypes } from '@/app/actions/assets';
 import { AssetForm } from '@/components/assets/asset-form';
+import { serializeFirestoreData } from '@/lib/firebase/serialize';
 
 export const metadata: Metadata = { title: 'Nova Caçamba — CaçambaFlow' };
 
@@ -19,7 +20,7 @@ export default async function NovaCacambaPage() {
       </div>
 
       <div className="card">
-        <AssetForm assetTypes={assetTypes as any} />
+        <AssetForm assetTypes={serializeFirestoreData(assetTypes) as any} />
       </div>
     </div>
   );

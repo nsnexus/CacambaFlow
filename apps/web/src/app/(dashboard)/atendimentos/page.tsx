@@ -5,6 +5,7 @@ import { JobBoard } from '@/components/jobs/job-board';
 export const metadata: Metadata = { title: 'Despacho (Kanban) — CaçambaFlow' };
 
 import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
+import { serializeFirestoreData } from '@/lib/firebase/serialize';
 
 // TODO: Migrar para Firestore - dados mock temporários
 async function getResources() {
@@ -57,10 +58,10 @@ export default async function AtendimentosPage({
         </form>
       </div>
 
-      <JobBoard 
-        initialJobs={jobs as any} 
-        drivers={drivers as any} 
-        vehicles={vehicles as any} 
+      <JobBoard
+        initialJobs={serializeFirestoreData(jobs) as any}
+        drivers={serializeFirestoreData(drivers) as any}
+        vehicles={serializeFirestoreData(vehicles) as any}
       />
     </div>
   );

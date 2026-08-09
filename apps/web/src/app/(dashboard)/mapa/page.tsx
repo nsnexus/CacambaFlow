@@ -5,21 +5,52 @@ export const metadata: Metadata = { title: 'Centro de Controle — CaçambaFlow'
 import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { FleetMapLoader } from '@/components/map/fleet-map-loader';
 
-// TODO: Migrar para Firestore Realtime
+// A app mobile grava cada ping de GPS como um documento novo em
+// `driver_locations` (campos soltos: driver_id, latitude, longitude...).
+// Aqui pegamos os pings mais recentes e ficamos só com o último de cada
+// motorista.
 async function getLatestLocations() {
   const { tenantId } = await requireUserAndTenant();
   try {
-    const locationsSnap = await adminDb.collection('fleet_locations')
+    const locationsSnap = await adminDb.collection('driver_locations')
       .where('tenant_id', '==', tenantId)
-      .limit(100)
+      .orderBy('device_timestamp', 'desc')
+      .limit(200)
       .get();
-    
-    const data = locationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Record<string, any>));
-    return data.sort((a, b) => {
-      const timeA = a.timestamp?._seconds || 0;
-      const timeB = b.timestamp?._seconds || 0;
-      return timeB - timeA;
-    });
+
+    const latestByDriver = new Map<string, Record<string, any>>();
+    for (const doc of locationsSnap.docs) {
+      const data = doc.data() as Record<string, any>;
+      if (!data.driver_id || latestByDriver.has(data.driver_id)) continue;
+      latestByDriver.set(data.driver_id, data);
+    }
+
+    const driverIds = Array.from(latestByDriver.keys());
+    const points = await Promise.all(driverIds.map(async (driverId) => {
+      const data = latestByDriver.get(driverId)!;
+      let name = 'Motorista removido';
+      const drvDoc = await adminDb.collection('drivers').doc(driverId).get();
+      if (drvDoc.exists) {
+        const drvData = drvDoc.data() as any;
+        if (drvData?.profile_id) {
+          const profDoc = await adminDb.collection('profiles').doc(drvData.profile_id).get();
+          if (profDoc.exists) name = (profDoc.data() as any)?.name ?? name;
+        }
+      }
+
+      return {
+        id: driverId,
+        driver: { profiles: { name } },
+        location: {
+          latitude: data.latitude,
+          longitude: data.longitude,
+          speed: data.speed ?? null,
+          device_timestamp: data.device_timestamp,
+        },
+      };
+    }));
+
+    return points;
   } catch (error) {
     console.error('Error fetching locations:', error);
     return [];

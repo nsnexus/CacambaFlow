@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { auth } from '../../lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useRouter } from 'expo-router';
 import { theme } from '../../constants/theme';
 
 export default function LoginScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -14,10 +16,14 @@ export default function LoginScreen() {
       Alert.alert('Atenção', 'Preencha e-mail e senha.');
       return;
     }
-    
+
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // A tela inicial (index.tsx) só escuta onAuthStateChanged enquanto
+      // está montada — como já navegamos pra cá, ela desmontou e cancelou a
+      // escuta. Por isso o redirecionamento precisa acontecer aqui mesmo.
+      router.replace('/(tabs)');
     } catch (error: any) {
       Alert.alert('Erro no Login', 'Verifique suas credenciais. ' + error.message);
     }

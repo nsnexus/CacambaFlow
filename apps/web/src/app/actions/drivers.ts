@@ -95,6 +95,11 @@ export async function createDriver(
     return { message: `Erro ao criar acesso: ${error.message}` };
   }
 
+  // Custom claim de tenant no token — as regras do Firestore leem daqui
+  // (request.auth.token.tenant_id) em vez de fazer get() no profile, porque
+  // get() cruzando coleção quebra consultas em lista/collectionGroup.
+  await adminAuth.setCustomUserClaims(authUser.uid, { tenant_id: sessionData.tenantId });
+
   // 2. Criar Profile
   try {
     await adminDb.collection('profiles').doc(authUser.uid).set({

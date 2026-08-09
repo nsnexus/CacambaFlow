@@ -7,9 +7,14 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Função para obter o tenant do usuário via perfil
+    // Tenant do usuário via custom claim do token (NÃO usar get() aqui: nas
+    // consultas em lista/collectionGroup do app mobile, um get() pra outra
+    // coleção faz o Firestore negar a query inteira com
+    // "Missing or insufficient permissions" — confirmado empiricamente).
+    // O custom claim "tenant_id" é setado no Auth (Admin SDK) na criação do
+    // usuário; ver setCustomUserClaims em createDriver/seed.
     function getUserTenant() {
-      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.tenant_id;
+      return request.auth.token.tenant_id;
     }
     
     // Função auxiliar para verificar tenant match (Multi-tenant SaaS)
@@ -41,25 +46,40 @@ service cloud.firestore {
       allow write: if false;
     }
     
-    match /drivers/{driverId} {
+    // Usa {path=**} (em vez de um match direto) porque o app mobile consulta
+    // esta coleção via collectionGroup() — sem o wildcard, o Firestore nega
+    // a query inteira com "Missing or insufficient permissions", mesmo com
+    // os documentos vivendo só no nível raiz.
+    match /{path=**}/drivers/{driverId} {
       allow read: if isAuthenticated() && isSameTenant(resource.data);
       allow write: if false;
     }
-    
+
     match /orders/{orderId} {
       allow read: if isAuthenticated() && isSameTenant(resource.data);
       allow write: if false;
-      
+
       match /jobs/{jobId} {
         allow read: if isAuthenticated() && isSameTenant(resource.data);
-        
+
         // Motoristas podem atualizar os status dos trabalhos deles (via app móvel)
         allow update: if isAuthenticated()
                       && isSameTenant(resource.data)
                       && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at', 'failure_note']));
-                      
+
         allow create, delete: if false;
       }
+    }
+
+    // Mesmas regras de /orders/{orderId}/jobs/{jobId} acima, mas usando
+    // {path=**} pra autorizar as consultas collectionGroup('jobs') que o
+    // app mobile faz (ex: "meus atendimentos de hoje").
+    match /{path=**}/jobs/{jobId} {
+      allow read: if isAuthenticated() && isSameTenant(resource.data);
+      allow update: if isAuthenticated()
+                    && isSameTenant(resource.data)
+                    && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updated_at', 'failure_note']));
+      allow create, delete: if false;
     }
     
     match /invoices/{invoiceId} {

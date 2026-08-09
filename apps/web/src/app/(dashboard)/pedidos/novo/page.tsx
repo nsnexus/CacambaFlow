@@ -5,21 +5,31 @@ import { OrderForm } from '@/components/orders/order-form';
 export const metadata: Metadata = { title: 'Novo Pedido — CaçambaFlow' };
 
 import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
+import { serializeFirestoreData } from '@/lib/firebase/serialize';
 
-// TODO: Migrar para Firestore
+// Endereços são subcoleção de customers (customers/{id}/addresses), por isso
+// buscamos todos os clientes do tenant e agregamos os endereços de cada um.
 async function getFormData() {
   const { tenantId } = await requireUserAndTenant();
-  
-  const [customersSnap, addressesSnap, assetTypesSnap] = await Promise.all([
+
+  const [customersSnap, assetTypesSnap] = await Promise.all([
     adminDb.collection('customers').where('tenant_id', '==', tenantId).get(),
-    adminDb.collection('addresses').where('tenant_id', '==', tenantId).get(),
     adminDb.collection('asset_types').where('tenant_id', '==', tenantId).get()
   ]);
 
+  const customers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+  const addressesByCustomer = await Promise.all(
+    customersSnap.docs.map(async (custDoc) => {
+      const addrSnap = await custDoc.ref.collection('addresses').where('status', '==', 'ATIVO').get();
+      return addrSnap.docs.map(a => ({ id: a.id, customer_id: custDoc.id, ...a.data() }));
+    })
+  );
+
   return {
-    customers: customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
-    addresses: addressesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
-    assetTypes: assetTypesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    customers: serializeFirestoreData(customers),
+    addresses: serializeFirestoreData(addressesByCustomer.flat()),
+    assetTypes: serializeFirestoreData(assetTypesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
   };
 }
 

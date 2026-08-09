@@ -25,7 +25,15 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       const tenantId = profileSnap.data().tenant_id;
       if (!tenantId) return;
 
-      const driversQuery = query(collection(db, 'drivers'), where('profile_id', '==', user.uid));
+      // O filtro de tenant_id precisa estar na própria query: as regras do
+      // Firestore checam isSameTenant(resource.data), e consultas em lista
+      // só passam quando o campo usado na regra também está filtrado na
+      // query (senão o Firestore nega a lista inteira por segurança).
+      const driversQuery = query(
+        collection(db, 'drivers'),
+        where('profile_id', '==', user.uid),
+        where('tenant_id', '==', tenantId)
+      );
       const driversSnap = await getDocs(driversQuery);
       if (driversSnap.empty) return;
       const driverId = driversSnap.docs[0].id;

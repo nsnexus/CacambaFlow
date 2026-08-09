@@ -57,7 +57,10 @@ export function AssetForm({ assetTypes }: { assetTypes: AssetType[] }) {
             fontSize: '0.875rem',
           }}
         >
-          Nenhum tipo de caçamba cadastrado ainda (ex: 5m³, 10m³). Cadastre um tipo diretamente no banco antes de continuar.
+          Nenhum tipo de caçamba cadastrado ainda (ex: 5m³, 10m³).{' '}
+          <Link href="/configuracoes/tipos-cacamba/novo" style={{ color: 'inherit', textDecoration: 'underline' }}>
+            Cadastre um tipo primeiro
+          </Link>.
         </div>
       )}
 

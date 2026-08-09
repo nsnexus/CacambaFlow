@@ -1,26 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { DataTable } from '@/components/ui/data-table';
+import { getFailureReasons } from '@/app/actions/failure-reasons';
+import { SettingsNav } from '@/components/layout/settings-nav';
 
 export const metadata: Metadata = { title: 'Motivos de Falha — CaçambaFlow' };
-
-import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
-
-// TODO: Migrar para Firestore
-async function getFailureReasons() {
-  const { tenantId } = await requireUserAndTenant();
-  const snapshot = await adminDb.collection('failure_reasons')
-    .where('tenant_id', '==', tenantId)
-    .get();
-    
-  const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  // Sort in memory to avoid Firestore index requirement
-  return data.sort((a: any, b: any) => {
-    const timeA = a.created_at?._seconds || 0;
-    const timeB = b.created_at?._seconds || 0;
-    return timeB - timeA;
-  });
-}
 
 const CATEGORY_LABELS: Record<string, string> = {
   CLIENTE: 'Cliente',
@@ -37,6 +21,7 @@ export default async function MotivosFalhaPage() {
 
   return (
     <div>
+      <SettingsNav />
       <div className="flex items-center justify-between" style={{ marginBottom: 'var(--space-6)' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Motivos de Falha</h1>

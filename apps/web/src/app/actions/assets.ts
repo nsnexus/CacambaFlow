@@ -77,7 +77,52 @@ export async function getAssetById(assetId: string) {
 export async function getAssetTypes() {
   const { tenantId } = await requireUserAndTenant();
   const snapshot = await adminDb.collection('asset_types').where('tenant_id', '==', tenantId).get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return data.sort((a: any, b: any) => (a.volume_m3 || 0) - (b.volume_m3 || 0));
+}
+
+const assetTypeSchema = z.object({
+  name: z.string().min(1, 'Nome obrigatório'),
+  volume_m3: z.coerce.number().positive('Volume deve ser maior que zero'),
+});
+
+export type AssetTypeFormState = {
+  errors?: Partial<Record<keyof z.infer<typeof assetTypeSchema>, string[]>>;
+  message?: string;
+};
+
+export async function createAssetType(
+  prevState: AssetTypeFormState,
+  formData: FormData
+): Promise<AssetTypeFormState> {
+  const parsed = assetTypeSchema.safeParse({
+    name: formData.get('name') as string,
+    volume_m3: formData.get('volume_m3') as string,
+  });
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  let sessionData;
+  try {
+    sessionData = await requireUserAndTenant();
+  } catch (e) {
+    redirect('/login');
+  }
+
+  try {
+    await adminDb.collection('asset_types').doc().set({
+      tenant_id: sessionData.tenantId,
+      ...parsed.data,
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error: any) {
+    return { message: `Erro ao criar tipo de caçamba: ${error.message}` };
+  }
+
+  revalidatePath('/configuracoes/tipos-cacamba');
+  revalidatePath('/cacambas/nova');
+  redirect('/configuracoes/tipos-cacamba');
 }
 
 export async function createAsset(

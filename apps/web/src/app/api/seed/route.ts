@@ -33,6 +33,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Custom claim de tenant no token — as regras do Firestore leem daqui
+    // (request.auth.token.tenant_id) em vez de get() no profile.
+    await adminAuth.setCustomUserClaims(userRecord.uid, { tenant_id: 'tenant-admin' });
+
     const tenantRef = adminDb.collection('tenants').doc('tenant-admin');
     await tenantRef.set({
       name: 'CaçambaFlow Matriz',
