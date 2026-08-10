@@ -9,3 +9,6 @@ expo-env.d.ts
 # app.json/plugins, não versionados (workflow gerenciado do Expo).
 /android
 /ios
+
+# Credenciais sensíveis — nunca versionar.
+/secrets
