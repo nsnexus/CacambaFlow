@@ -460,8 +460,8 @@ export default async function LandingPage() {
           padding: var(--space-10);
           flex-wrap: wrap;
         }
-        .cta__inner h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: var(--space-2); }
-        .cta__inner p { color: var(--color-text-muted); max-width: 480px; }
+        .cta__inner h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: var(--space-2); color: #ffffff; }
+        .cta__inner p { color: rgba(255,255,255,0.65); max-width: 480px; }
 
         /* Footer */
         .landing-footer { border-top: 1px solid var(--color-border-subtle); padding: var(--space-8) 0; }

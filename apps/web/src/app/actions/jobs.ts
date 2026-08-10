@@ -10,7 +10,12 @@ export async function getJobsForDispatch(date?: string) {
   // busca precisa ser um collectionGroup, não uma coleção de topo.
   let jobsQuery = adminDb.collectionGroup('jobs')
     .where('tenant_id', '==', tenantId)
-    .where('status', 'in', ['PENDENTE', 'ATRIBUIDO', 'EM_ROTA', 'NO_LOCAL', 'EM_EXECUCAO']);
+    .where('status', 'in', [
+      'PENDENTE', 'REAGENDADO', 'RASCUNHO',
+      'ATRIBUIDO',
+      'EM_ROTA', 'NO_LOCAL', 'EM_EXECUCAO', 'CONCLUIDO_LOCAL', 'SINCRONIZANDO',
+      'CONCLUIDO', 'FALHADO', 'ERRO_SYNC',
+    ]);
 
   if (date) {
     jobsQuery = jobsQuery.where('scheduled_date', '==', date);
