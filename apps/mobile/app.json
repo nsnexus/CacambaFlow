@@ -52,7 +52,18 @@
         {
           "cameraPermission": "CaçambaFlow usa a câmera para tirar fotos de evidências e ler QR Codes das caçambas."
         }
-      ]
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "targetSdkVersion": 35,
+            "compileSdkVersion": 35
+          }
+        }
+      ],
+      "expo-secure-store",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true

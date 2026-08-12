@@ -11,14 +11,18 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_UNSTABLE_CORE_AUTOLINKING": "1"
+      }
     }
   },
   "submit": {
     "production": {
       "android": {
         "serviceAccountKeyPath": "./secrets/play-service-account.json",
-        "track": "alpha"
+        "track": "alpha",
+        "releaseStatus": "draft"
       }
     }
   }
