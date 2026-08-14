@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getTenants } from '@/app/actions/tenants';
 import { DataTable } from '@/components/ui/data-table';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { TenantActions } from '@/components/tenants/tenant-actions';
 
 export const metadata: Metadata = { title: 'Empresas — CaçambaFlow' };
 
@@ -37,13 +39,52 @@ export default async function EmpresasPage() {
         data={tenants as unknown as Record<string, unknown>[]}
         emptyMessage="Nenhuma empresa cadastrada ainda."
         columns={[
-          { key: 'name', label: 'Nome' },
+          {
+            key: 'name',
+            label: 'Nome',
+            render: (val, row) => (
+              <div>
+                <div style={{ fontWeight: 600 }}>{val as string}</div>
+                <div className="text-muted text-xs">Fuso: {(row.timezone as string) || 'America/Sao_Paulo'}</div>
+              </div>
+            ),
+          },
           { key: 'document', label: 'CNPJ', render: (val) => (val as string) || '—' },
+          {
+            key: 'monthly_fee',
+            label: 'Mensalidade',
+            render: (val, row) => {
+              const fee = Number(val ?? 0);
+              const day = (row.billing_due_day as number) || 10;
+              if (!fee) return <span className="text-muted text-xs">Não definida</span>;
+              return (
+                <div>
+                  <div style={{ fontWeight: 600 }}>
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(fee)}
+                  </div>
+                  <div className="text-muted text-xs">Vence dia {day}</div>
+                </div>
+              );
+            },
+          },
           { key: 'driversCount', label: 'Motoristas' },
           { key: 'vehiclesCount', label: 'Veículos' },
           { key: 'customersCount', label: 'Clientes' },
+          {
+            key: 'status',
+            label: 'Status',
+            render: (val) => <StatusBadge status={(val as string) || 'ATIVO'} />,
+          },
         ]}
+        actions={(row) => (
+          <TenantActions
+            tenantId={row.id as string}
+            tenantName={(row.name as string) || 'Empresa'}
+            currentStatus={((row.status as string) || 'ATIVO') as 'ATIVO' | 'INATIVO' | 'SUSPENSO'}
+          />
+        )}
       />
     </div>
   );
 }
+

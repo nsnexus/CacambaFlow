@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
-import { getLeads } from '@/app/actions/leads';
+import { getLeads, type LeadStatus } from '@/app/actions/leads';
 import { DataTable } from '@/components/ui/data-table';
+import { LeadStatusSelect } from '@/components/leads/lead-status-select';
+import { LeadActions } from '@/components/leads/lead-actions';
 
 export const metadata: Metadata = { title: 'Solicitações de Orçamento — CaçambaFlow' };
 
@@ -39,7 +41,7 @@ export default async function SolicitacoesPage() {
             label: 'Contato',
             render: (_val, row) => (
               <div>
-                <div>{row.contact_phone as string}</div>
+                <div style={{ fontWeight: 500 }}>{row.contact_phone as string}</div>
                 <div className="text-muted text-xs">{row.contact_email as string}</div>
               </div>
             ),
@@ -48,7 +50,7 @@ export default async function SolicitacoesPage() {
           {
             key: 'office_users_count',
             label: 'Usuários',
-            render: (_val, row) => `${row.office_users_count} escritório · ${row.driver_users_count} motoristas`,
+            render: (_val, row) => `${row.office_users_count} escritório · ${row.driver_users_count} mot.`,
           },
           {
             key: 'needs_tracking',
@@ -60,12 +62,29 @@ export default async function SolicitacoesPage() {
             ),
           },
           {
+            key: 'status',
+            label: 'Status do Orçamento',
+            render: (val, row) => (
+              <LeadStatusSelect
+                leadId={row.id as string}
+                currentStatus={(val as LeadStatus) || 'NOVO'}
+              />
+            ),
+          },
+          {
             key: 'created_at',
             label: 'Recebido em',
             render: (val) => (val ? new Date(val as string).toLocaleString('pt-BR') : '—'),
           },
         ]}
+        actions={(row) => (
+          <LeadActions
+            leadId={row.id as string}
+            companyName={(row.company_name as string) || 'Empresa'}
+          />
+        )}
       />
     </div>
   );
 }
+

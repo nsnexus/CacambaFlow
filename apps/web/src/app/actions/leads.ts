@@ -79,7 +79,31 @@ export async function getLeads() {
     return {
       id: doc.id,
       ...data,
+      status: data.status || 'NOVO',
       created_at: data.created_at?.toDate?.().toISOString() ?? null,
     };
   });
+}
+
+export type LeadStatus = 'NOVO' | 'ORCAMENTO_ENVIADO' | 'EM_NEGOCIACAO' | 'APROVADO' | 'PERDIDO';
+
+export async function updateLeadStatus(leadId: string, status: LeadStatus) {
+  await requireSuperAdmin();
+
+  await adminDb.collection('leads').doc(leadId).update({
+    status,
+    updated_at: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  const { revalidatePath } = await import('next/cache');
+  revalidatePath('/solicitacoes');
+}
+
+export async function deleteLead(leadId: string) {
+  await requireSuperAdmin();
+
+  await adminDb.collection('leads').doc(leadId).delete();
+
+  const { revalidatePath } = await import('next/cache');
+  revalidatePath('/solicitacoes');
 }

@@ -32,6 +32,17 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   EM_DESCARGA:     { label: 'Em Descarga',  cls: 'badge--em-execucao' },
   EM_LIMPEZA:      { label: 'Em Limpeza',   cls: 'badge--em-execucao' },
   PERDIDA:         { label: 'Perdida',      cls: 'badge--falhado' },
+
+  // Leads / Solicitações de Orçamento
+  NOVO:              { label: 'Novo',             cls: 'badge--pendente' },
+  ORCAMENTO_ENVIADO: { label: 'Orçamento Enviado',cls: 'badge--atribuido' },
+  EM_NEGOCIACAO:     { label: 'Em Negociação',    cls: 'badge--em-rota' },
+  APROVADO:          { label: 'Aprovado',         cls: 'badge--concluido' },
+  PERDIDO:           { label: 'Perdido',          cls: 'badge--cancelado' },
+
+  // Pagamentos / Mensalidades
+  PAGO:              { label: 'Pago',             cls: 'badge--concluido' },
+  ATRASADO:          { label: 'Atrasado',         cls: 'badge--falhado' },
 };
 
 interface StatusBadgeProps {

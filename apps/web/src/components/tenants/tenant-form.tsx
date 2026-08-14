@@ -96,6 +96,52 @@ export function TenantForm() {
         </div>
       </div>
 
+      <div className="form-section">
+        <h2 className="form-section__title">Plano & Cobrança da Plataforma (SaaS)</h2>
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="label" htmlFor="tenant-monthly-fee">Valor da Mensalidade (R$) *</label>
+            <input
+              id="tenant-monthly-fee"
+              name="monthly_fee"
+              type="number"
+              step="0.01"
+              min="0"
+              className="input"
+              defaultValue="250.00"
+              placeholder="250.00"
+            />
+            {state.errors?.monthly_fee && <p className="form-error">{state.errors.monthly_fee[0]}</p>}
+          </div>
+
+          <div className="form-group">
+            <label className="label" htmlFor="tenant-due-day">Dia do Vencimento Mensal *</label>
+            <input
+              id="tenant-due-day"
+              name="billing_due_day"
+              type="number"
+              min="1"
+              max="31"
+              className="input"
+              defaultValue="10"
+              placeholder="10"
+            />
+            {state.errors?.billing_due_day && <p className="form-error">{state.errors.billing_due_day[0]}</p>}
+          </div>
+
+          <div className="form-group">
+            <label className="label" htmlFor="tenant-first-due-date">Data do Primeiro Vencimento</label>
+            <input
+              id="tenant-first-due-date"
+              name="first_due_date"
+              type="date"
+              className="input"
+            />
+            <span className="text-muted text-xs">Opcional. Se vazio, calcula automaticamente com base no dia informado.</span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex gap-4" style={{ marginTop: 'var(--space-6)' }}>
         <SubmitButton />
         <Link href="/empresas" className="btn btn--secondary btn--lg">Cancelar</Link>
