@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
 import { auth } from '../../lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'expo-router';
@@ -36,7 +36,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
-        <Text style={styles.logoIcon}>🪣</Text>
+        <Image source={require('../../../assets/logo-mark.png')} style={styles.logoIcon} resizeMode="contain" />
         <Text style={styles.title}>CaçambaFlow</Text>
         <Text style={styles.subtitle}>App do Motorista</Text>
       </View>
@@ -95,7 +95,8 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xxl,
   },
   logoIcon: {
-    fontSize: 64,
+    width: 88,
+    height: 88,
     marginBottom: theme.spacing.sm,
   },
   title: {

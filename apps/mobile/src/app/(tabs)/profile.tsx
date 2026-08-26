@@ -6,6 +6,7 @@ import { auth, db } from '../../lib/firebase';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { theme } from '../../constants/theme';
+import { stopLocationTracking } from '../../services/location';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -56,6 +57,7 @@ export default function ProfileScreen() {
           text: 'Sair',
           style: 'destructive',
           onPress: async () => {
+            await stopLocationTracking();
             await signOut(auth);
             // O onAuthStateChanged em app/index.tsx cuida do redirecionamento
           }

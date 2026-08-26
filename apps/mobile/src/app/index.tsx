@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, Text, StyleSheet, Image } from 'react-native';
 import { auth } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'expo-router';
@@ -21,7 +21,8 @@ export default function InitialScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.logoText}>🪣 CaçambaFlow</Text>
+      <Image source={require('../assets/logo-mark.png')} style={styles.logoIcon} resizeMode="contain" />
+      <Text style={styles.logoText}>CaçambaFlow</Text>
       <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: theme.spacing.lg }} />
     </View>
   );
@@ -33,6 +34,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  logoIcon: {
+    width: 96,
+    height: 96,
+    marginBottom: theme.spacing.sm,
   },
   logoText: {
     fontSize: 32,

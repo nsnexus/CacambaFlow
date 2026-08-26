@@ -1,8 +1,18 @@
 import { Tabs } from 'expo-router';
 import { theme } from '../../constants/theme';
 import { Text } from 'react-native';
+import { useEffect } from 'react';
+import { startLocationTracking } from '../../services/location';
 
 export default function TabsLayout() {
+  useEffect(() => {
+    // Captura localização assim que o motorista abre o app logado, para o
+    // painel administrativo já ter a posição sincronizada mesmo sem atendimento em rota.
+    startLocationTracking().catch((e) => {
+      console.warn('[TabsLayout] rastreamento não iniciado ao abrir o app:', e.message);
+    });
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
