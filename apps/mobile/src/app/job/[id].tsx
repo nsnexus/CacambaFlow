@@ -16,6 +16,7 @@ import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import { db } from '../../lib/firebase';
 import { captureEvidence } from '../../services/camera';
+import { getPendingEvidenceCountForJob } from '../../services/evidenceQueue';
 import { startLocationTracking, stopLocationTracking, promptLocationIssue } from '../../services/location';
 import { openNavigationApp } from '../../services/navigation';
 import { buildMapHtml, updateDriverPositionScript } from '../../services/mapHtml';
@@ -202,7 +203,11 @@ export default function JobDetailScreen() {
         where('job_id', '==', id),
         where('tenant_id', '==', jobData.tenant_id)
       ));
-      setEvidenceCount(evSnap.size);
+      // Soma também as evidências ainda na fila local (capturadas offline,
+      // aguardando subir) — senão o motorista fica bloqueado de concluir o
+      // atendimento por causa de uma foto que ele JÁ tirou, só que sem rede.
+      const pendingCount = await getPendingEvidenceCountForJob(id);
+      setEvidenceCount(evSnap.size + pendingCount);
     } catch (error: any) {
       Alert.alert('Erro ao carregar atendimento', error.message);
     } finally {
@@ -338,10 +343,12 @@ export default function JobDetailScreen() {
     if (!orderId || !id) return;
     setCapturing(true);
     try {
-      const url = await captureEvidence(id, orderId, 'FOTO_LOCAL');
-      if (url) {
+      const captured = await captureEvidence(id, orderId, 'FOTO_LOCAL');
+      if (captured) {
         setEvidenceCount((c) => c + 1);
-        Alert.alert('Evidência salva', 'Foto enviada com sucesso.');
+        // Pode já ter subido ou só ter ficado na fila (sem rede) — em
+        // ambos os casos a foto está salva e conta pra liberar a conclusão.
+        Alert.alert('Evidência salva', 'Foto salva. Envia automaticamente assim que tiver conexão.');
       }
     } catch (error: any) {
       Alert.alert('Erro ao capturar evidência', error.message);

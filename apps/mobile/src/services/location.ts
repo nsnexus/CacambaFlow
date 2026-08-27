@@ -42,7 +42,9 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       // Pega apenas a coordenada mais recente do lote
       const loc = locations[locations.length - 1];
 
-      // Envio direto e online. A fila offline (Outbox) é da Fase 5, ainda não implementada.
+      // addDoc aqui não precisa de fila manual: o Firestore já está com
+      // persistentLocalCache (ver lib/firebase.ts), então esse write fica
+      // guardado localmente e sincroniza sozinho quando a conexão voltar.
       await addDoc(collection(db, 'driver_locations'), {
         tenant_id: tenantId,
         driver_id: driverId,

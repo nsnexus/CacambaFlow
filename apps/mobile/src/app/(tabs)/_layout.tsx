@@ -2,8 +2,10 @@ import { Tabs } from 'expo-router';
 import { theme } from '../../constants/theme';
 import { Text } from 'react-native';
 import { useEffect } from 'react';
+import NetInfo from '@react-native-community/netinfo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { startLocationTracking, promptLocationIssue } from '../../services/location';
+import { trySyncPendingEvidence } from '../../services/evidenceQueue';
 import { ConnectionBadge } from '../../components/ConnectionBadge';
 
 export default function TabsLayout() {
@@ -16,6 +18,23 @@ export default function TabsLayout() {
       console.warn('[TabsLayout] rastreamento não iniciado ao abrir o app:', e.message);
       promptLocationIssue(e);
     });
+  }, []);
+
+  useEffect(() => {
+    // Tenta enviar evidências que ficaram na fila (capturadas sem rede) assim
+    // que o app abre e sempre que a conexão voltar — sem exigir nenhuma ação
+    // manual do motorista.
+    trySyncPendingEvidence().catch(() => {});
+
+    let wasOffline = false;
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const isOnline = !!state.isConnected && state.isInternetReachable !== false;
+      if (isOnline && wasOffline) {
+        trySyncPendingEvidence().catch(() => {});
+      }
+      wasOffline = !isOnline;
+    });
+    return unsubscribe;
   }, []);
 
   return (

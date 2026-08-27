@@ -1,17 +1,14 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { auth, db, storage } from '../lib/firebase';
-import { doc, getDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-
-function generateId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
+import { auth, db } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { enqueueEvidence, trySyncPendingEvidence } from './evidenceQueue';
 
 /**
- * Abre a câmera, tira a foto e sobe direto para o Firebase Storage,
- * gravando o metadado na coleção `evidences`. Upload é online-only por
- * enquanto — a fila offline (Outbox) é da Fase 5, ainda não implementada.
+ * Abre a câmera, tira a foto e coloca na fila de evidências (evidenceQueue.ts).
+ * Tenta subir pro Storage/Firestore na hora — se não der (sem rede), a foto
+ * já ficou salva localmente e some da fila sozinha assim que a conexão voltar
+ * (ver trySyncPendingEvidence, chamado no app inteiro ao detectar rede de volta).
  */
 export async function captureEvidence(
   jobId: string,
@@ -48,39 +45,33 @@ export async function captureEvidence(
     console.warn('[CameraService] Não foi possível pegar a localização para a foto.');
   }
 
+  // tenant_id vem do cache local do Firestore quando offline (o perfil já foi
+  // lido antes, em login/profile/location) — só falha aqui se for a
+  // primeiríssima leitura do app inteiro sem nunca ter tido rede.
   const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
   if (!profileSnap.exists()) throw new Error('Perfil não encontrado');
   const tenantId = profileSnap.data().tenant_id;
   if (!tenantId) throw new Error('Perfil sem tenant associado');
 
-  const fileName = `${generateId()}.jpg`;
-  const storagePath = `evidences/${tenantId}/${orderId}/${jobId}/${fileName}`;
-
-  const response = await fetch(asset.uri);
-  const blob = await response.blob();
-
-  const storageRef = ref(storage, storagePath);
-  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
-  const downloadUrl = await getDownloadURL(storageRef);
-
   const now = new Date().toISOString();
 
-  await addDoc(collection(db, 'evidences'), {
-    tenant_id: tenantId,
-    job_id: jobId,
-    order_id: orderId,
-    evidence_type: evidenceType,
-    storage_path: storagePath,
-    download_url: downloadUrl,
-    mime_type: 'image/jpeg',
-    file_size: asset.fileSize || blob.size || 0,
-    captured_at_device: now,
+  await enqueueEvidence({
+    jobId,
+    orderId,
+    tenantId,
+    evidenceType,
+    sourceUri: asset.uri,
+    mimeType: 'image/jpeg',
+    fileSize: asset.fileSize || 0,
     latitude: lat,
     longitude: lng,
-    created_by: user.uid,
-    status: 'UPLOAD_OK',
-    created_at: serverTimestamp(),
+    capturedAtDevice: now,
+    createdBy: user.uid,
   });
 
-  return downloadUrl;
+  // Melhor esforço: tenta subir na hora (comportamento igual a antes quando
+  // online). Se falhar (sem rede), a foto já está segura na fila.
+  trySyncPendingEvidence().catch(() => {});
+
+  return true;
 }
