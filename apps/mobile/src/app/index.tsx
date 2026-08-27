@@ -21,7 +21,7 @@ export default function InitialScreen() {
 
   return (
     <View style={styles.container}>
-      <Image source={require('../assets/logo-mark.png')} style={styles.logoIcon} resizeMode="contain" />
+      <Image source={require('../../assets/logo-mark.png')} style={styles.logoIcon} resizeMode="contain" />
       <Text style={styles.logoText}>CaçambaFlow</Text>
       <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: theme.spacing.lg }} />
     </View>
