@@ -74,13 +74,50 @@ export default function JobDetailScreen() {
 
   const jobRef = orderId && id ? doc(db, 'orders', orderId, 'jobs', id) : null;
 
-  const destinationHasCoords = !!job && hasValidCoords(job.addressLatitude, job.addressLongitude);
+  // Endereço em texto, mesma string usada na navegação externa — reaproveitada
+  // aqui também pra geocodificar quando não tem coordenada salva no cadastro.
+  const fullAddressText = job ? (job.city ? `${job.address}, ${job.city}` : job.address) : '';
+
+  const [geocodedCoords, setGeocodedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  // Muito endereço fica salvo sem coordenada (ou com 0,0) — sem isso, o mapa
+  // não aparece e o gate de chegada não tem como calcular distância (ficava
+  // liberando "Cheguei ao local" de qualquer jeito). Geocodifica o MESMO
+  // texto que já mandamos pro Maps, garantindo que a coordenada usada aqui
+  // bate com o endereço mostrado, em vez de depender só do cadastro.
+  useEffect(() => {
+    setGeocodedCoords(null);
+    if (!job || hasValidCoords(job.addressLatitude, job.addressLongitude) || !fullAddressText) return;
+
+    let cancelled = false;
+    Location.geocodeAsync(fullAddressText)
+      .then((results) => {
+        if (cancelled || results.length === 0) return;
+        setGeocodedCoords({ latitude: results[0].latitude, longitude: results[0].longitude });
+      })
+      .catch((e) => {
+        console.warn('[Job] não foi possível geocodificar o endereço:', e);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [job?.id, job?.addressLatitude, job?.addressLongitude, fullAddressText]);
+
+  const destinationCoords = useMemo(() => {
+    if (job && hasValidCoords(job.addressLatitude, job.addressLongitude)) {
+      return { latitude: job.addressLatitude!, longitude: job.addressLongitude! };
+    }
+    return geocodedCoords;
+  }, [job?.addressLatitude, job?.addressLongitude, geocodedCoords]);
+
+  const destinationHasCoords = !!destinationCoords;
   const showRouteMap = job?.status === 'EM_ROTA' && destinationHasCoords;
 
   const distanceToDestination = useMemo(() => {
-    if (!driverPosition || !job || !hasValidCoords(job.addressLatitude, job.addressLongitude)) return null;
-    return distanceInMeters(driverPosition.latitude, driverPosition.longitude, job.addressLatitude!, job.addressLongitude!);
-  }, [driverPosition, job?.addressLatitude, job?.addressLongitude]);
+    if (!driverPosition || !destinationCoords) return null;
+    return distanceInMeters(driverPosition.latitude, driverPosition.longitude, destinationCoords.latitude, destinationCoords.longitude);
+  }, [driverPosition, destinationCoords]);
 
   // Enquanto o atendimento está "Em rota" e o endereço tem coordenada válida,
   // observa a posição do motorista em tempo real (tela aberta) só pra calcular
@@ -117,11 +154,11 @@ export default function JobDetailScreen() {
   }, [showRouteMap]);
 
   const routeMapHtml = useMemo(() => {
-    if (!job || !hasValidCoords(job.addressLatitude, job.addressLongitude)) return null;
+    if (!job || !destinationCoords) return null;
     return buildMapHtml(null, [
-      { id: job.id, label: job.customerName, color: theme.colors.primary, latitude: job.addressLatitude!, longitude: job.addressLongitude! },
+      { id: job.id, label: job.customerName, color: theme.colors.primary, latitude: destinationCoords.latitude, longitude: destinationCoords.longitude },
     ]);
-  }, [job?.id, job?.addressLatitude, job?.addressLongitude]);
+  }, [job?.id, destinationCoords]);
   const routeMapSource = useMemo(() => (routeMapHtml ? { html: routeMapHtml } : null), [routeMapHtml]);
 
   useEffect(() => {
@@ -418,9 +455,9 @@ export default function JobDetailScreen() {
             onPress={() =>
               openNavigationApp(
                 {
-                  latitude: job.addressLatitude,
-                  longitude: job.addressLongitude,
-                  address: job.city ? `${job.address}, ${job.city}` : job.address,
+                  latitude: destinationCoords?.latitude ?? job.addressLatitude,
+                  longitude: destinationCoords?.longitude ?? job.addressLongitude,
+                  address: fullAddressText,
                 },
                 job.customerName
               )
