@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { auth } from '../../lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'expo-router';
@@ -9,6 +10,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
@@ -57,14 +59,27 @@ export default function LoginScreen() {
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Senha</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Sua senha"
-            placeholderTextColor={theme.colors.textMuted}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <View style={styles.passwordWrapper}>
+            <TextInput
+              style={[styles.input, styles.passwordInput]}
+              placeholder="Sua senha"
+              placeholderTextColor={theme.colors.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowPassword((prev) => !prev)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off' : 'eye'}
+                size={22}
+                color={theme.colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity 
@@ -129,6 +144,16 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     color: theme.colors.text,
     fontSize: 16,
+  },
+  passwordWrapper: {
+    justifyContent: 'center',
+  },
+  passwordInput: {
+    paddingRight: theme.spacing.xxl,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: theme.spacing.md,
   },
   button: {
     backgroundColor: theme.colors.primary,
