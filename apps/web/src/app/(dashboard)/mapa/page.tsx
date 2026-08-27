@@ -4,6 +4,7 @@ export const metadata: Metadata = { title: 'Centro de Controle — CaçambaFlow'
 
 import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { FleetMapLoader } from '@/components/map/fleet-map-loader';
+import { AutoRefresh } from '@/components/auto-refresh';
 
 // A app mobile grava cada ping de GPS como um documento novo em
 // `driver_locations` (campos soltos: driver_id, latitude, longitude...).
@@ -62,6 +63,7 @@ export default async function MapaPage() {
 
   return (
     <div style={{ height: 'calc(100vh - var(--header-height) - 48px)', display: 'flex', flexDirection: 'column' }}>
+      <AutoRefresh intervalMs={10000} />
       <div className="flex items-center justify-between" style={{ marginBottom: 'var(--space-4)', flexShrink: 0 }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Centro de Controle (Real-time)</h1>
