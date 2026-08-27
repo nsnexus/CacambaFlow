@@ -296,14 +296,23 @@ export default function JobDetailScreen() {
         <Text style={styles.textMuted}>{job.city}</Text>
         {job.accessNotes ? <Text style={styles.textMuted}>Obs. de acesso: {job.accessNotes}</Text> : null}
 
-        {job.addressLatitude != null && job.addressLongitude != null && (
+        {job.address ? (
           <TouchableOpacity
             style={styles.navigateButton}
-            onPress={() => openNavigationApp(job.addressLatitude!, job.addressLongitude!, job.customerName)}
+            onPress={() =>
+              openNavigationApp(
+                {
+                  latitude: job.addressLatitude,
+                  longitude: job.addressLongitude,
+                  address: job.city ? `${job.address}, ${job.city}` : job.address,
+                },
+                job.customerName
+              )
+            }
           >
             <Text style={styles.navigateButtonText}>🧭 Navegar até o local</Text>
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
 
       <View style={styles.card}>
