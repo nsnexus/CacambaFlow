@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { theme } from '../constants/theme';
+import { ConnectionBadge } from '../components/ConnectionBadge';
 
 export default function RootLayout() {
   return (
@@ -17,6 +18,7 @@ export default function RootLayout() {
             headerStyle: { backgroundColor: theme.colors.surface },
             headerTintColor: theme.colors.text,
             title: 'Atendimento',
+            headerRight: () => <ConnectionBadge />,
           }}
         />
         <Stack.Screen
@@ -26,6 +28,7 @@ export default function RootLayout() {
             headerStyle: { backgroundColor: theme.colors.surface },
             headerTintColor: theme.colors.text,
             title: 'Selecionar Veículo',
+            headerRight: () => <ConnectionBadge />,
           }}
         />
       </Stack>

@@ -4,6 +4,7 @@ import { Text } from 'react-native';
 import { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { startLocationTracking, promptLocationIssue } from '../../services/location';
+import { ConnectionBadge } from '../../components/ConnectionBadge';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -26,6 +27,7 @@ export default function TabsLayout() {
           borderBottomColor: theme.colors.border,
         },
         headerTintColor: theme.colors.text,
+        headerRight: () => <ConnectionBadge />,
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.border,

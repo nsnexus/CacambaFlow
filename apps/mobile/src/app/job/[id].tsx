@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,14 +13,22 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import * as Location from 'expo-location';
+import { WebView } from 'react-native-webview';
 import { db } from '../../lib/firebase';
 import { captureEvidence } from '../../services/camera';
 import { startLocationTracking, stopLocationTracking, promptLocationIssue } from '../../services/location';
 import { openNavigationApp } from '../../services/navigation';
+import { buildMapHtml, updateDriverPositionScript } from '../../services/mapHtml';
+import { distanceInMeters, hasValidCoords } from '../../services/geo';
 import { theme } from '../../constants/theme';
 import type { JobStatus } from '@cacambaflow/types';
 
 const JOB_TYPES_NEED_ASSET = ['ENTREGA', 'TROCA'];
+
+// Raio de tolerância pra liberar "Cheguei ao local" — GPS de celular tem erro
+// de uns 10-30m mesmo parado, então 100m evita falso negativo sem deixar
+// confirmar de longe demais.
+const ARRIVAL_RADIUS_METERS = 100;
 
 type JobDetail = {
   id: string;
@@ -59,8 +67,71 @@ export default function JobDetailScreen() {
   const [capturing, setCapturing] = useState(false);
   const [showFailureForm, setShowFailureForm] = useState(false);
   const [failureNote, setFailureNote] = useState('');
+  const [driverPosition, setDriverPosition] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const webviewRef = useRef<WebView>(null);
 
   const jobRef = orderId && id ? doc(db, 'orders', orderId, 'jobs', id) : null;
+
+  const destinationHasCoords = !!job && hasValidCoords(job.addressLatitude, job.addressLongitude);
+  const showRouteMap = job?.status === 'EM_ROTA' && destinationHasCoords;
+
+  const distanceToDestination = useMemo(() => {
+    if (!driverPosition || !job || !hasValidCoords(job.addressLatitude, job.addressLongitude)) return null;
+    return distanceInMeters(driverPosition.latitude, driverPosition.longitude, job.addressLatitude!, job.addressLongitude!);
+  }, [driverPosition, job?.addressLatitude, job?.addressLongitude]);
+
+  // Enquanto o atendimento está "Em rota" e o endereço tem coordenada válida,
+  // observa a posição do motorista em tempo real (tela aberta) só pra calcular
+  // a distância e desenhar o pontinho no mapa — separado do rastreamento em
+  // background que já sincroniza com o painel administrativo.
+  useEffect(() => {
+    if (!showRouteMap) {
+      setDriverPosition(null);
+      return;
+    }
+
+    let subscription: Location.LocationSubscription | null = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) return;
+        subscription = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 10 },
+          (loc) => {
+            if (!cancelled) setDriverPosition({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+          }
+        );
+      } catch (e) {
+        console.warn('[Job] não foi possível observar a posição pro cálculo de distância:', e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      subscription?.remove();
+    };
+  }, [showRouteMap]);
+
+  const routeMapHtml = useMemo(() => {
+    if (!job || !hasValidCoords(job.addressLatitude, job.addressLongitude)) return null;
+    return buildMapHtml(null, [
+      { id: job.id, label: job.customerName, color: theme.colors.primary, latitude: job.addressLatitude!, longitude: job.addressLongitude! },
+    ]);
+  }, [job?.id, job?.addressLatitude, job?.addressLongitude]);
+  const routeMapSource = useMemo(() => (routeMapHtml ? { html: routeMapHtml } : null), [routeMapHtml]);
+
+  useEffect(() => {
+    setMapReady(false);
+  }, [routeMapHtml]);
+
+  useEffect(() => {
+    if (mapReady && driverPosition) {
+      webviewRef.current?.injectJavaScript(updateDriverPositionScript(driverPosition.latitude, driverPosition.longitude));
+    }
+  }, [mapReady, driverPosition]);
 
   const load = useCallback(async () => {
     if (!orderId || !id) return;
@@ -155,6 +226,15 @@ export default function JobDetailScreen() {
 
     setUpdating(true);
     try {
+      // Pulo rápido: motorista já chegou perto do endereço (ver arrivalGateActive
+      // mais abaixo) e foi direto pra "Concluir atendimento" num clique só. Ainda
+      // assim grava "Cheguei ao local" e "Iniciar serviço" no meio do caminho,
+      // pro painel administrativo manter o histórico de status.
+      if (job.status === 'EM_ROTA' && next === 'CONCLUIDO') {
+        await updateDoc(jobRef, { status: 'NO_LOCAL', updated_at: new Date().toISOString() });
+        await updateDoc(jobRef, { status: 'EM_EXECUCAO', updated_at: new Date().toISOString() });
+      }
+
       await updateDoc(jobRef, { status: next, updated_at: new Date().toISOString() });
       setJob({ ...job, status: next });
 
@@ -281,6 +361,17 @@ export default function JobDetailScreen() {
   const step = NEXT_STEP[job.status];
   const isActive = ACTIVE_STATUSES.includes(job.status);
 
+  // Só existe "chegada" pra travar quando o endereço tem coordenada de verdade
+  // (ver hasValidCoords) — sem isso, segue o fluxo manual normal de sempre.
+  const arrivalGateActive = job.status === 'EM_ROTA' && destinationHasCoords;
+  const arrived = !arrivalGateActive || (distanceToDestination != null && distanceToDestination <= ARRIVAL_RADIUS_METERS);
+
+  // Perto do endereço, pula "Cheguei ao local" e "Iniciar serviço" — vai
+  // direto pro clique único de "Concluir atendimento" (advanceStatus grava os
+  // status intermediários por trás, ver acima).
+  const primaryStep = arrivalGateActive && arrived ? { label: 'Concluir atendimento', next: 'CONCLUIDO' as JobStatus } : step;
+  const primaryDisabled = updating || (arrivalGateActive && !arrived);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
@@ -288,6 +379,24 @@ export default function JobDetailScreen() {
         <Text style={styles.jobType}>{job.job_type}</Text>
         <Text style={styles.statusLabel}>Status atual: {job.status}</Text>
       </View>
+
+      {showRouteMap && routeMapSource && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Rota até o local</Text>
+          <WebView
+            ref={webviewRef}
+            originWhitelist={['*']}
+            source={routeMapSource}
+            style={styles.routeMap}
+            onLoadEnd={() => setMapReady(true)}
+          />
+          <Text style={styles.textMuted}>
+            {distanceToDestination != null
+              ? `Você está a ${Math.round(distanceToDestination)}m do local.`
+              : 'Aguardando localização pra calcular a distância...'}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Cliente</Text>
@@ -332,18 +441,25 @@ export default function JobDetailScreen() {
 
       {isActive && (
         <View style={styles.card}>
-          {step && (
+          {primaryStep && (
             <TouchableOpacity
-              style={[styles.button, updating && styles.buttonDisabled]}
-              onPress={() => advanceStatus(step.next)}
-              disabled={updating}
+              style={[styles.button, primaryDisabled && styles.buttonDisabled]}
+              onPress={() => advanceStatus(primaryStep.next)}
+              disabled={primaryDisabled}
             >
               {updating ? (
                 <ActivityIndicator color={theme.colors.background} />
               ) : (
-                <Text style={styles.buttonText}>{step.label}</Text>
+                <Text style={styles.buttonText}>{primaryStep.label}</Text>
               )}
             </TouchableOpacity>
+          )}
+          {arrivalGateActive && !arrived && (
+            <Text style={styles.arrivalHint}>
+              {distanceToDestination != null
+                ? `Você está a ${Math.round(distanceToDestination)}m do local — precisa chegar a ${ARRIVAL_RADIUS_METERS}m pra concluir.`
+                : 'Aguardando localização pra liberar a conclusão...'}
+            </Text>
           )}
 
           {!showFailureForm ? (
@@ -446,6 +562,17 @@ const styles = StyleSheet.create({
   navigateButtonText: {
     color: theme.colors.text,
     fontWeight: '600',
+  },
+  routeMap: {
+    height: 220,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.sm,
+  },
+  arrivalHint: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: theme.spacing.sm,
   },
   button: {
     backgroundColor: theme.colors.primary,
