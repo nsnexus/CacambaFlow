@@ -317,3 +317,41 @@ export async function getDeliveredAssets() {
 
   return data;
 }
+
+// Caçambas que esse cliente já tem alugadas (status LOCADA) agora — usado no
+// formulário de novo pedido pra avisar antes de criar mais uma entrega.
+export async function getActiveRentalsForCustomer(customerId: string) {
+  if (!customerId) return [];
+  const { tenantId } = await requireUserAndTenant();
+
+  const snapshot = await adminDb.collection('assets')
+    .where('tenant_id', '==', tenantId)
+    .where('customer_id', '==', customerId)
+    .where('status', '==', 'LOCADA')
+    .get();
+
+  return Promise.all(snapshot.docs.map(async doc => {
+    const assetData = doc.data() as any;
+
+    let asset_types = null;
+    if (assetData.asset_type_id) {
+      const typeDoc = await adminDb.collection('asset_types').doc(assetData.asset_type_id).get();
+      if (typeDoc.exists) asset_types = typeDoc.data();
+    }
+
+    let address = null;
+    if (assetData.address_id) {
+      const addrDoc = await adminDb.collection('customers').doc(customerId).collection('addresses').doc(assetData.address_id).get();
+      if (addrDoc.exists) address = addrDoc.data();
+    }
+
+    return {
+      id: doc.id,
+      identifier: assetData.identifier ?? null,
+      asset_types,
+      address,
+      delivered_at: assetData.delivered_at ?? null,
+      expected_return_date: assetData.expected_return_date ?? null,
+    };
+  }));
+}

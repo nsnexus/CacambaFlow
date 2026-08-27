@@ -2,8 +2,18 @@
 
 import { useFormState, useFormStatus } from 'react-dom';
 import { createOrder, type OrderFormState } from '@/app/actions/orders';
+import { getActiveRentalsForCustomer } from '@/app/actions/assets';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+type ActiveRental = {
+  id: string;
+  identifier: string | null;
+  asset_types: { name?: string } | null;
+  address: { name?: string; street?: string; number?: string } | null;
+  delivered_at: string | null;
+  expected_return_date: string | null;
+};
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -30,11 +40,38 @@ export function OrderForm({
 }) {
   const [state, action] = useFormState<OrderFormState, FormData>(createOrder, {});
   const [selectedCustomer, setSelectedCustomer] = useState('');
-  
+  const [activeRentals, setActiveRentals] = useState<ActiveRental[]>([]);
+  const [checkingRentals, setCheckingRentals] = useState(false);
+
   // Lista dinâmica de atendimentos dentro do formulário
-  const [jobs, setJobs] = useState([{ id: 1, type: 'ENTREGA' }]);
+  const [jobs, setJobs] = useState([{ id: 1 }]);
 
   const filteredAddresses = addresses.filter(a => (a as any).customer_id === selectedCustomer);
+
+  // Avisa (sem bloquear) quando o cliente selecionado já tem caçamba(s)
+  // alugada(s) — pode ser troca, caçamba extra etc., a decisão é de quem
+  // está lançando o pedido.
+  useEffect(() => {
+    if (!selectedCustomer) {
+      setActiveRentals([]);
+      return;
+    }
+    let cancelled = false;
+    setCheckingRentals(true);
+    getActiveRentalsForCustomer(selectedCustomer)
+      .then((rentals) => {
+        if (!cancelled) setActiveRentals(rentals as ActiveRental[]);
+      })
+      .catch(() => {
+        if (!cancelled) setActiveRentals([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingRentals(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCustomer]);
 
   return (
     <form action={action} noValidate>
@@ -72,16 +109,45 @@ export function OrderForm({
             {state.errors?.address_id && <p className="form-error">{state.errors.address_id[0]}</p>}
           </div>
         </div>
+
+        {checkingRentals && (
+          <p className="text-muted text-sm" style={{ marginTop: 'var(--space-3)' }}>Verificando caçambas do cliente...</p>
+        )}
+        {!checkingRentals && activeRentals.length > 0 && (
+          <div
+            role="status"
+            style={{
+              marginTop: 'var(--space-3)',
+              padding: 'var(--space-3)',
+              background: 'var(--color-warning-bg, #FEF3C7)',
+              border: '1px solid var(--color-warning, #F59E0B)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.875rem',
+            }}
+          >
+            <strong>⚠️ Este cliente já tem {activeRentals.length > 1 ? `${activeRentals.length} caçambas alugadas` : 'uma caçamba alugada'}:</strong>
+            <ul style={{ marginTop: 'var(--space-2)', paddingLeft: 'var(--space-4)' }}>
+              {activeRentals.map((rental) => (
+                <li key={rental.id}>
+                  {rental.identifier ? `Caçamba ${rental.identifier}` : 'Caçamba'}
+                  {rental.asset_types?.name ? ` (${rental.asset_types.name})` : ''}
+                  {rental.address ? ` — ${rental.address.name ?? ''} ${rental.address.street ?? ''}, ${rental.address.number ?? ''}`.trim() : ''}
+                  {rental.expected_return_date ? ` — recolhimento previsto ${rental.expected_return_date}` : ''}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* --- Seção 2: Atendimentos --- */}
       <div className="form-section" style={{ marginBottom: 'var(--space-8)' }}>
         <div className="flex items-center justify-between" style={{ marginBottom: 'var(--space-4)', paddingBottom: 'var(--space-2)', borderBottom: '1px solid var(--color-border)' }}>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 600 }}>2. Atendimentos (Serviços)</h2>
-          <button 
-            type="button" 
-            className="btn btn--secondary btn--sm" 
-            onClick={() => setJobs([...jobs, { id: Date.now(), type: 'COLETA' }])}
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={() => setJobs([...jobs, { id: Date.now() }])}
           >
             + Adicionar Serviço
           </button>
@@ -89,18 +155,17 @@ export function OrderForm({
 
         {jobs.map((job, index) => (
           <div key={job.id} style={{ background: 'var(--color-surface-2)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-4)', position: 'relative' }}>
+            <p className="text-muted" style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: 'var(--space-3)' }}>
+              Entrega — o recolhimento é agendado automaticamente na data prevista abaixo
+            </p>
             <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
               <div className="form-group">
-                <label className="label">Tipo de Serviço *</label>
-                <select name={`jobs[${index}][job_type]`} className="input" defaultValue={job.type} required>
-                  <option value="ENTREGA">Colocação / Entrega</option>
-                  <option value="COLETA">Retirada / Coleta</option>
-                  <option value="TROCA">Troca</option>
-                </select>
+                <label className="label">Data Prevista da Entrega *</label>
+                <input name={`jobs[${index}][scheduled_date]`} type="date" className="input" required />
               </div>
               <div className="form-group">
-                <label className="label">Data Prevista *</label>
-                <input name={`jobs[${index}][scheduled_date]`} type="date" className="input" required />
+                <label className="label">Data Prevista do Recolhimento *</label>
+                <input name={`jobs[${index}][expected_return_date]`} type="date" className="input" required />
               </div>
               <div className="form-group">
                 <label className="label">Tamanho da Caçamba</label>

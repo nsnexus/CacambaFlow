@@ -6,10 +6,14 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
 
-// Zod schema genérico para um item de pedido (atendimento/job)
+// Zod schema genérico para um item de pedido (atendimento/job). Esse
+// formulário só cria entregas — o job_type fica sempre 'ENTREGA' — e o
+// recolhimento (COLETA) é sempre gerado automaticamente a partir de
+// expected_return_date (ver createOrder). Troca/Tarefa continuam existindo
+// como job_type no modelo de dados, só não são criados por aqui.
 const jobSchema = z.object({
-  job_type: z.enum(['ENTREGA', 'COLETA', 'TROCA', 'TAREFA']),
-  scheduled_date: z.string().min(10), // YYYY-MM-DD
+  scheduled_date: z.string().min(10), // YYYY-MM-DD — data da entrega
+  expected_return_date: z.string().min(10), // YYYY-MM-DD — data prevista do recolhimento automático
   expected_asset_type_id: z.string().optional().or(z.literal('')),
   priority: z.coerce.number().default(1),
   window_start: z.string().optional(),
@@ -149,10 +153,10 @@ export async function createOrder(
   // Parsing manual do formData complexo (array de jobs)
   const jobsData = [];
   let i = 0;
-  while (formData.has(`jobs[${i}][job_type]`)) {
+  while (formData.has(`jobs[${i}][scheduled_date]`)) {
     jobsData.push({
-      job_type: formData.get(`jobs[${i}][job_type]`),
       scheduled_date: formData.get(`jobs[${i}][scheduled_date]`),
+      expected_return_date: formData.get(`jobs[${i}][expected_return_date]`),
       expected_asset_type_id: formData.get(`jobs[${i}][expected_asset_type_id]`),
       priority: formData.get(`jobs[${i}][priority]`),
     });
@@ -203,20 +207,40 @@ export async function createOrder(
       created_at: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    parsed.data.jobs.forEach((job, index) => {
-      const jobRef = orderRef.collection('jobs').doc();
-      batch.set(jobRef, {
+    // Cada linha do formulário vira dois jobs: a entrega em si e o
+    // recolhimento automático na data prevista (expected_return_date) — o
+    // motorista nunca precisa que alguém crie a coleta manualmente depois.
+    let sequence = 1;
+    parsed.data.jobs.forEach((job) => {
+      const deliveryRef = orderRef.collection('jobs').doc();
+      batch.set(deliveryRef, {
         tenant_id: sessionData.tenantId,
         order_id: orderRef.id,
-        job_number: generateJobNumber(orderNumber, index + 1),
-        job_type: job.job_type,
+        job_number: generateJobNumber(orderNumber, sequence),
+        job_type: 'ENTREGA',
         status: 'PENDENTE',
         scheduled_date: job.scheduled_date,
         expected_asset_type_id: job.expected_asset_type_id || null,
         priority: job.priority,
-        sequence_number: index + 1,
+        sequence_number: sequence,
         created_at: admin.firestore.FieldValue.serverTimestamp(),
       });
+      sequence++;
+
+      const pickupRef = orderRef.collection('jobs').doc();
+      batch.set(pickupRef, {
+        tenant_id: sessionData.tenantId,
+        order_id: orderRef.id,
+        job_number: generateJobNumber(orderNumber, sequence),
+        job_type: 'COLETA',
+        status: 'PENDENTE',
+        scheduled_date: job.expected_return_date,
+        expected_asset_type_id: job.expected_asset_type_id || null,
+        priority: job.priority,
+        sequence_number: sequence,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      sequence++;
     });
 
     await batch.commit();
