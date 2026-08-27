@@ -15,7 +15,7 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs, limit } from
 import * as Location from 'expo-location';
 import { db } from '../../lib/firebase';
 import { captureEvidence } from '../../services/camera';
-import { startLocationTracking, stopLocationTracking } from '../../services/location';
+import { startLocationTracking, stopLocationTracking, promptLocationIssue } from '../../services/location';
 import { openNavigationApp } from '../../services/navigation';
 import { theme } from '../../constants/theme';
 import type { JobStatus } from '@cacambaflow/types';
@@ -161,10 +161,7 @@ export default function JobDetailScreen() {
       if (next === 'EM_ROTA') {
         startLocationTracking().catch((e) => {
           console.warn('[Job] rastreamento não iniciado:', e.message);
-          Alert.alert(
-            'Rastreamento não iniciado',
-            'Não foi possível ativar o GPS: ' + e.message + '\n\nVerifique se a permissão de localização do app está como "Permitir o tempo todo" nas configurações do Android.'
-          );
+          promptLocationIssue(e);
         });
       }
       if (next === 'CONCLUIDO') {

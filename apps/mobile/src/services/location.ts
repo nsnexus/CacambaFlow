@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import { Alert, Linking, Platform } from 'react-native';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -60,18 +61,43 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
 });
 
 /**
+ * Erro de rastreamento com o motivo tipado, pra quem chamar decidir qual tela
+ * de configuração do Android abrir (permissão do app vs GPS do sistema).
+ */
+export class LocationTrackingError extends Error {
+  constructor(
+    message: string,
+    public reason: 'permission_denied' | 'services_disabled'
+  ) {
+    super(message);
+    this.name = 'LocationTrackingError';
+  }
+}
+
+/**
  * Solicita permissões e inicia o rastreamento em foreground e background.
  * Chamado quando a jornada de trabalho do motorista é iniciada.
  */
 export async function startLocationTracking() {
   const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
   if (foregroundStatus !== 'granted') {
-    throw new Error('Permissão de localização em primeiro plano foi negada.');
+    throw new LocationTrackingError('Permissão de localização em primeiro plano foi negada.', 'permission_denied');
   }
 
   const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
   if (backgroundStatus !== 'granted') {
-    throw new Error('Permissão de localização em segundo plano (com tela desligada) foi negada.');
+    throw new LocationTrackingError(
+      'Permissão de localização em segundo plano (com tela desligada) foi negada.',
+      'permission_denied'
+    );
+  }
+
+  // Permissão concedida não significa GPS ligado — checa o serviço de
+  // localização do aparelho separado, senão o rastreamento fica "ativo" só
+  // que sem nenhuma coordenada chegando.
+  const servicesEnabled = await Location.hasServicesEnabledAsync();
+  if (!servicesEnabled) {
+    throw new LocationTrackingError('O GPS do aparelho está desligado.', 'services_disabled');
   }
 
   const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
@@ -99,4 +125,43 @@ export async function stopLocationTracking() {
   if (hasStarted) {
     await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
   }
+}
+
+/**
+ * Mostra um alerta explicando o que falta liberar, com um botão que já leva
+ * o motorista direto pra tela certa: configurações do app (permissão) ou
+ * configurações de localização do sistema (GPS desligado).
+ */
+export function promptLocationIssue(error: unknown) {
+  const reason = error instanceof LocationTrackingError ? error.reason : 'permission_denied';
+
+  if (reason === 'services_disabled') {
+    Alert.alert(
+      'GPS desligado',
+      'O CaçambaFlow precisa do GPS ligado pra sincronizar sua rota com o painel administrativo.',
+      [
+        { text: 'Agora não', style: 'cancel' },
+        {
+          text: 'Ativar GPS',
+          onPress: () => {
+            if (Platform.OS === 'android') {
+              Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS');
+            } else {
+              Linking.openSettings();
+            }
+          },
+        },
+      ]
+    );
+    return;
+  }
+
+  Alert.alert(
+    'Localização necessária',
+    'O CaçambaFlow precisa da sua localização liberada (inclusive em segundo plano) pra sincronizar sua rota com o painel administrativo. Sem isso o app não funciona corretamente.',
+    [
+      { text: 'Agora não', style: 'cancel' },
+      { text: 'Abrir configurações', onPress: () => Linking.openSettings() },
+    ]
+  );
 }

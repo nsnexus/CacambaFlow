@@ -2,14 +2,18 @@ import { Tabs } from 'expo-router';
 import { theme } from '../../constants/theme';
 import { Text } from 'react-native';
 import { useEffect } from 'react';
-import { startLocationTracking } from '../../services/location';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { startLocationTracking, promptLocationIssue } from '../../services/location';
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
   useEffect(() => {
     // Captura localização assim que o motorista abre o app logado, para o
     // painel administrativo já ter a posição sincronizada mesmo sem atendimento em rota.
     startLocationTracking().catch((e) => {
       console.warn('[TabsLayout] rastreamento não iniciado ao abrir o app:', e.message);
+      promptLocationIssue(e);
     });
   }, []);
 
@@ -25,8 +29,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.border,
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
         },
         tabBarActiveTintColor: theme.colors.primary,
