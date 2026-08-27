@@ -59,7 +59,10 @@ export default function ProfileScreen() {
           onPress: async () => {
             await stopLocationTracking();
             await signOut(auth);
-            // O onAuthStateChanged em app/index.tsx cuida do redirecionamento
+            // app/index.tsx só escuta onAuthStateChanged enquanto está montado
+            // (mesmo motivo comentado em login.tsx) — como já navegamos pra
+            // longe dele faz tempo, o redirecionamento precisa ser explícito aqui.
+            router.replace('/(auth)/login');
           }
         }
       ]
