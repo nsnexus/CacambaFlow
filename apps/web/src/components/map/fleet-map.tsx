@@ -1,8 +1,7 @@
 'use client';
 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useState } from 'react';
+import { GoogleMap, MarkerF, InfoWindowF, useJsApiLoader } from '@react-google-maps/api';
 
 type TelemetryPoint = {
   id?: string;
@@ -15,60 +14,78 @@ type TelemetryPoint = {
   };
 };
 
+const containerStyle = { width: '100%', height: '100%', borderRadius: 'var(--radius-lg)' };
+
+// Ícone circular colorido (mesmo visual do dot que era feito com L.divIcon no
+// Leaflet) — SVG embutido como data URI, sem precisar de asset externo.
 function buildIcon(isOnline: boolean) {
   const color = isOnline ? '#22C55E' : '#F59E0B';
-  return L.divIcon({
-    className: 'fleet-marker',
-    html: `<div style="
-      width: 18px; height: 18px; border-radius: 50%;
-      background: ${color}; border: 3px solid #fff;
-      box-shadow: 0 0 8px rgba(0,0,0,0.5);
-    "></div>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-    popupAnchor: [0, -9],
-  });
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+      <circle cx="12" cy="12" r="9" fill="${color}" stroke="#fff" stroke-width="3" />
+    </svg>
+  `;
+  return {
+    url: `data:image/svg+xml;base64,${typeof window !== 'undefined' ? window.btoa(svg) : ''}`,
+    scaledSize: typeof window !== 'undefined' && window.google ? new window.google.maps.Size(24, 24) : undefined,
+    anchor: typeof window !== 'undefined' && window.google ? new window.google.maps.Point(12, 12) : undefined,
+  };
 }
 
 export function FleetMap({ telemetry }: { telemetry: TelemetryPoint[] }) {
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+  });
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+
   const points = telemetry.filter((t) => t.location?.latitude && t.location?.longitude);
 
   const first = points[0];
-  const center: [number, number] = first
-    ? [first.location.latitude, first.location.longitude]
-    : [-23.5505, -46.6333]; // fallback: São Paulo
+  const center = first
+    ? { lat: first.location.latitude, lng: first.location.longitude }
+    : { lat: -23.5505, lng: -46.6333 }; // fallback: São Paulo
+
+  if (!isLoaded) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)' }}>
+        Carregando mapa...
+      </div>
+    );
+  }
 
   return (
-    <MapContainer
+    <GoogleMap
+      mapContainerStyle={containerStyle}
       center={center}
       zoom={points.length ? 12 : 4}
-      style={{ width: '100%', height: '100%', borderRadius: 'var(--radius-lg)' }}
+      options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-
       {points.map((t, idx) => {
         const diffMin = Math.floor((Date.now() - new Date(t.location.device_timestamp).getTime()) / 60000);
         const isOnline = diffMin < 10;
 
         return (
-          <Marker
+          <MarkerF
             key={t.id ?? idx}
-            position={[t.location.latitude, t.location.longitude]}
+            position={{ lat: t.location.latitude, lng: t.location.longitude }}
             icon={buildIcon(isOnline)}
+            onClick={() => setActiveIdx(idx)}
           >
-            <Popup>
-              <strong>{t.driver.profiles.name}</strong>
-              <br />
-              {isOnline ? 'Online' : `Há ${diffMin} min`}
-              <br />
-              {t.location.speed ? `${(t.location.speed * 3.6).toFixed(1)} km/h` : '0 km/h'}
-            </Popup>
-          </Marker>
+            {activeIdx === idx && (
+              <InfoWindowF onCloseClick={() => setActiveIdx(null)}>
+                <div style={{ fontSize: '0.8125rem', color: '#111' }}>
+                  <strong>{t.driver.profiles.name}</strong>
+                  <br />
+                  {isOnline ? 'Online' : `Há ${diffMin} min`}
+                  <br />
+                  {t.location.speed ? `${(t.location.speed * 3.6).toFixed(1)} km/h` : '0 km/h'}
+                </div>
+              </InfoWindowF>
+            )}
+          </MarkerF>
         );
       })}
-    </MapContainer>
+    </GoogleMap>
   );
 }
