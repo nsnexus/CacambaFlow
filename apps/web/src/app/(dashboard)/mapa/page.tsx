@@ -12,17 +12,22 @@ import { serializeFirestoreData } from '@/lib/firebase/serialize';
 // usada no board de Despacho, menos os terminais (concluído/falhado/etc).
 const ACTIVE_JOB_STATUSES = ['ATRIBUIDO', 'EM_ROTA', 'NO_LOCAL', 'EM_EXECUCAO', 'CONCLUIDO_LOCAL', 'SINCRONIZANDO'];
 
-// Atendimentos ativos de cada motorista (contagem + se tem algum "Em rota"
-// agora), pra mostrar no Centro de Controle sem precisar abrir o Despacho.
+// Atendimentos ativos de HOJE de cada motorista (contagem + se tem algum "Em
+// rota" agora), pra mostrar no Centro de Controle sem precisar abrir o
+// Despacho. Sem o filtro de data contava atendimento de qualquer dia (ex.:
+// um "Atribuído" de ontem que nunca foi concluído), inflando a contagem.
 async function getActiveJobsByDriver(tenantId: string, driverIds: string[]) {
   const byDriver = new Map<string, { count: number; hasEmRota: boolean }>();
   if (driverIds.length === 0) return byDriver;
+
+  const today = new Date().toISOString().split('T')[0];
 
   // Firestore 'in' aceita até 30 valores — a frota real não deve passar disso
   // tão cedo; se passar, dá pra paginar em lotes de 30 depois.
   const snapshot = await adminDb.collectionGroup('jobs')
     .where('tenant_id', '==', tenantId)
     .where('assigned_driver_id', 'in', driverIds.slice(0, 30))
+    .where('scheduled_date', '==', today)
     .get();
 
   for (const doc of snapshot.docs) {
@@ -153,7 +158,7 @@ export default async function MapaPage() {
                         </span>
                       )}
                       <span className="text-xs text-muted">
-                        {t.assignedJobsCount} atendimento{t.assignedJobsCount === 1 ? '' : 's'} atribuído{t.assignedJobsCount === 1 ? '' : 's'}
+                        {t.assignedJobsCount} atendimento{t.assignedJobsCount === 1 ? '' : 's'} atribuído{t.assignedJobsCount === 1 ? '' : 's'} hoje
                       </span>
                     </div>
                   </div>
