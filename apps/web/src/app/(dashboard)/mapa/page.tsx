@@ -6,6 +6,7 @@ import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { FleetMapLoader } from '@/components/map/fleet-map-loader';
 import { AutoRefresh } from '@/components/auto-refresh';
 import { getDeliveredAssets } from '@/app/actions/assets';
+import { serializeFirestoreData } from '@/lib/firebase/serialize';
 
 // Status que contam como "atendimento ativo" pra um motorista — mesma lista
 // usada no board de Despacho, menos os terminais (concluído/falhado/etc).
@@ -164,7 +165,7 @@ export default async function MapaPage() {
 
         {/* Área do Mapa Principal */}
         <div style={{ flex: 1, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
-          <FleetMapLoader telemetry={telemetry as any} assets={deliveredAssets as any} />
+          <FleetMapLoader telemetry={serializeFirestoreData(telemetry) as any} assets={serializeFirestoreData(deliveredAssets) as any} />
         </div>
       </div>
     </div>
