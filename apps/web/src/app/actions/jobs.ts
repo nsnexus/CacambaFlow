@@ -97,7 +97,7 @@ export async function getAvailableAssetsForDispatch() {
       const typeDoc = await adminDb.collection('asset_types').doc(assetData.asset_type_id).get();
       if (typeDoc.exists) asset_types = typeDoc.data();
     }
-    return { id: doc.id, identifier: assetData.identifier, asset_types };
+    return { id: doc.id, identifier: assetData.identifier, asset_type_id: assetData.asset_type_id ?? null, asset_types };
   }));
 
   return data;

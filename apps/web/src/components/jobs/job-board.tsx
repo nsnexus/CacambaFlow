@@ -8,7 +8,7 @@ import { UserRound, Truck, Container } from 'lucide-react';
 type Job = any; // Em um cenário real, usaria o tipo completo do Supabase
 type Driver = { id: string; profiles: { name: string } };
 type Vehicle = { id: string; plate: string };
-type Asset = { id: string; identifier: string; asset_types?: { name: string; volume_m3: number } | null };
+type Asset = { id: string; identifier: string; asset_type_id?: string | null; asset_types?: { name: string; volume_m3: number } | null };
 
 interface JobBoardProps {
   initialJobs: Job[];
@@ -192,6 +192,12 @@ export function JobBoard({ initialJobs, drivers, vehicles, assets }: JobBoardPro
       {assigningJob && (() => {
         const job = jobs.find(j => j.id === assigningJob);
         const needsAsset = JOB_TYPES_NEED_ASSET.includes(job?.job_type);
+        // O pedido já diz que tamanho de caçamba o cliente pediu
+        // (expected_asset_type_id) — pré-seleciona a primeira disponível
+        // desse tipo em vez de deixar o despachante escolher do zero toda vez.
+        const autoAsset = job?.expected_asset_type_id
+          ? assets.find(a => a.asset_type_id === job.expected_asset_type_id)
+          : undefined;
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
             <div className="card" style={{ width: '400px' }}>
@@ -214,15 +220,19 @@ export function JobBoard({ initialJobs, drivers, vehicles, assets }: JobBoardPro
                 {needsAsset && (
                   <div className="form-group" style={{ marginBottom: 'var(--space-6)' }}>
                     <label className="label">Caçamba</label>
-                    <select name="asset_id" className="input">
+                    <select key={job?.id} name="asset_id" className="input" defaultValue={autoAsset?.id ?? ''}>
                       <option value="">Selecione (opcional)...</option>
                       {assets.map(a => (
                         <option key={a.id} value={a.id}>{a.identifier}{a.asset_types ? ` — ${a.asset_types.name}` : ''}</option>
                       ))}
                     </select>
-                    {assets.length === 0 && (
+                    {autoAsset ? (
+                      <p className="text-muted text-xs" style={{ marginTop: 'var(--space-1)' }}>
+                        Pré-selecionada pelo tamanho pedido — troque se precisar.
+                      </p>
+                    ) : assets.length === 0 ? (
                       <p className="text-muted text-xs" style={{ marginTop: 'var(--space-1)' }}>Nenhuma caçamba disponível no momento.</p>
-                    )}
+                    ) : null}
                   </div>
                 )}
                 <div className="flex gap-4">

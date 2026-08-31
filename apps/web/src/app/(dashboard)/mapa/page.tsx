@@ -5,6 +5,36 @@ export const metadata: Metadata = { title: 'Centro de Controle — CaçambaFlow'
 import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { FleetMapLoader } from '@/components/map/fleet-map-loader';
 import { AutoRefresh } from '@/components/auto-refresh';
+import { getDeliveredAssets } from '@/app/actions/assets';
+
+// Status que contam como "atendimento ativo" pra um motorista — mesma lista
+// usada no board de Despacho, menos os terminais (concluído/falhado/etc).
+const ACTIVE_JOB_STATUSES = ['ATRIBUIDO', 'EM_ROTA', 'NO_LOCAL', 'EM_EXECUCAO', 'CONCLUIDO_LOCAL', 'SINCRONIZANDO'];
+
+// Atendimentos ativos de cada motorista (contagem + se tem algum "Em rota"
+// agora), pra mostrar no Centro de Controle sem precisar abrir o Despacho.
+async function getActiveJobsByDriver(tenantId: string, driverIds: string[]) {
+  const byDriver = new Map<string, { count: number; hasEmRota: boolean }>();
+  if (driverIds.length === 0) return byDriver;
+
+  // Firestore 'in' aceita até 30 valores — a frota real não deve passar disso
+  // tão cedo; se passar, dá pra paginar em lotes de 30 depois.
+  const snapshot = await adminDb.collectionGroup('jobs')
+    .where('tenant_id', '==', tenantId)
+    .where('assigned_driver_id', 'in', driverIds.slice(0, 30))
+    .get();
+
+  for (const doc of snapshot.docs) {
+    const data = doc.data() as any;
+    if (!ACTIVE_JOB_STATUSES.includes(data.status)) continue;
+    const entry = byDriver.get(data.assigned_driver_id) || { count: 0, hasEmRota: false };
+    entry.count += 1;
+    if (data.status === 'EM_ROTA') entry.hasEmRota = true;
+    byDriver.set(data.assigned_driver_id, entry);
+  }
+
+  return byDriver;
+}
 
 // A app mobile grava cada ping de GPS como um documento novo em
 // `driver_locations` (campos soltos: driver_id, latitude, longitude...).
@@ -27,6 +57,8 @@ async function getLatestLocations() {
     }
 
     const driverIds = Array.from(latestByDriver.keys());
+    const activeJobsByDriver = await getActiveJobsByDriver(tenantId, driverIds);
+
     const points = await Promise.all(driverIds.map(async (driverId) => {
       const data = latestByDriver.get(driverId)!;
       let name = 'Motorista removido';
@@ -39,6 +71,8 @@ async function getLatestLocations() {
         }
       }
 
+      const jobsInfo = activeJobsByDriver.get(driverId) || { count: 0, hasEmRota: false };
+
       return {
         id: driverId,
         driver: { profiles: { name } },
@@ -48,6 +82,8 @@ async function getLatestLocations() {
           speed: data.speed ?? null,
           device_timestamp: data.device_timestamp,
         },
+        assignedJobsCount: jobsInfo.count,
+        isEmRota: jobsInfo.hasEmRota,
       };
     }));
 
@@ -59,7 +95,10 @@ async function getLatestLocations() {
 }
 
 export default async function MapaPage() {
-  const telemetry = await getLatestLocations();
+  const [telemetry, deliveredAssets] = await Promise.all([
+    getLatestLocations(),
+    getDeliveredAssets(),
+  ]);
 
   return (
     <div style={{ height: 'calc(100vh - var(--header-height) - 48px)', display: 'flex', flexDirection: 'column' }}>
@@ -95,7 +134,7 @@ export default async function MapaPage() {
                 return (
                   <div key={idx} style={{ padding: 'var(--space-3)', background: 'var(--color-bg)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-2)', borderLeft: `3px solid ${isOnline ? 'var(--color-success)' : 'var(--color-warning)'}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{t.driver.profiles.name}</span>
+                      <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>🚚 {t.driver.profiles.name}</span>
                       <span style={{ fontSize: '0.75rem', color: isOnline ? 'var(--color-success)' : 'var(--color-warning)' }}>
                         {isOnline ? 'Online' : `Há ${diffMin} min`}
                       </span>
@@ -106,6 +145,16 @@ export default async function MapaPage() {
                     <div className="text-xs text-muted" style={{ marginTop: '2px' }}>
                       Velocidade: {t.location.speed ? `${(t.location.speed * 3.6).toFixed(1)} km/h` : '0 km/h'}
                     </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: 'var(--space-2)' }}>
+                      {t.isEmRota && (
+                        <span className="badge" style={{ background: 'var(--color-warning)', color: '#111', fontSize: '0.6875rem' }}>
+                          Em rota de entrega
+                        </span>
+                      )}
+                      <span className="text-xs text-muted">
+                        {t.assignedJobsCount} atendimento{t.assignedJobsCount === 1 ? '' : 's'} atribuído{t.assignedJobsCount === 1 ? '' : 's'}
+                      </span>
+                    </div>
                   </div>
                 );
               })
@@ -115,7 +164,7 @@ export default async function MapaPage() {
 
         {/* Área do Mapa Principal */}
         <div style={{ flex: 1, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
-          <FleetMapLoader telemetry={telemetry as any} />
+          <FleetMapLoader telemetry={telemetry as any} assets={deliveredAssets as any} />
         </div>
       </div>
     </div>
