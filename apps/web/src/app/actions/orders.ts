@@ -14,7 +14,7 @@ import * as admin from 'firebase-admin';
 const jobSchema = z.object({
   scheduled_date: z.string().min(10), // YYYY-MM-DD — data da entrega
   expected_return_date: z.string().min(10), // YYYY-MM-DD — data prevista do recolhimento automático
-  expected_asset_type_id: z.string().optional().or(z.literal('')),
+  expected_asset_id: z.string().min(1, 'Selecione a caçamba'),
   priority: z.coerce.number().default(1),
   window_start: z.string().optional(),
   window_end: z.string().optional(),
@@ -157,7 +157,7 @@ export async function createOrder(
     jobsData.push({
       scheduled_date: formData.get(`jobs[${i}][scheduled_date]`),
       expected_return_date: formData.get(`jobs[${i}][expected_return_date]`),
-      expected_asset_type_id: formData.get(`jobs[${i}][expected_asset_type_id]`),
+      expected_asset_id: formData.get(`jobs[${i}][expected_asset_id]`),
       priority: formData.get(`jobs[${i}][priority]`),
     });
     i++;
@@ -220,7 +220,7 @@ export async function createOrder(
         job_type: 'ENTREGA',
         status: 'PENDENTE',
         scheduled_date: job.scheduled_date,
-        expected_asset_type_id: job.expected_asset_type_id || null,
+        expected_asset_id: job.expected_asset_id,
         priority: job.priority,
         sequence_number: sequence,
         created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -235,7 +235,7 @@ export async function createOrder(
         job_type: 'COLETA',
         status: 'PENDENTE',
         scheduled_date: job.expected_return_date,
-        expected_asset_type_id: job.expected_asset_type_id || null,
+        expected_asset_id: job.expected_asset_id,
         priority: job.priority,
         sequence_number: sequence,
         created_at: admin.firestore.FieldValue.serverTimestamp(),

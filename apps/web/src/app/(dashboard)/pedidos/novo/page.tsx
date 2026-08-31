@@ -12,10 +12,7 @@ import { serializeFirestoreData } from '@/lib/firebase/serialize';
 async function getFormData() {
   const { tenantId } = await requireUserAndTenant();
 
-  const [customersSnap, assetTypesSnap] = await Promise.all([
-    adminDb.collection('customers').where('tenant_id', '==', tenantId).get(),
-    adminDb.collection('asset_types').where('tenant_id', '==', tenantId).get()
-  ]);
+  const customersSnap = await adminDb.collection('customers').where('tenant_id', '==', tenantId).get();
 
   const customers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
@@ -29,12 +26,11 @@ async function getFormData() {
   return {
     customers: serializeFirestoreData(customers),
     addresses: serializeFirestoreData(addressesByCustomer.flat()),
-    assetTypes: serializeFirestoreData(assetTypesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
   };
 }
 
 export default async function NovoPedidoPage() {
-  const { customers, addresses, assetTypes } = await getFormData();
+  const { customers, addresses } = await getFormData();
 
   return (
     <div>
@@ -47,10 +43,9 @@ export default async function NovoPedidoPage() {
       </div>
 
       <div className="card">
-        <OrderForm 
-          customers={customers as any} 
-          addresses={addresses as any} 
-          assetTypes={assetTypes as any} 
+        <OrderForm
+          customers={customers as any}
+          addresses={addresses as any}
         />
       </div>
     </div>

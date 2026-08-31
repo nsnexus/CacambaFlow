@@ -434,6 +434,97 @@ export async function getDeliveredAssets() {
   return data;
 }
 
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// Caçambas específicas disponíveis pra uma janela de datas (entrega →
+// recolhimento previsto) — usado no formulário de novo pedido pra escolher a
+// unidade exata em vez de só o tamanho. Considera:
+//  - DISPONIVEL: sempre entra (está livre no pátio).
+//  - LOCADA: só entra se a devolução prevista da locação atual é antes da
+//    nova data de entrega pedida.
+//  - Reservas de outros pedidos futuros (expected_asset_id em jobs ainda não
+//    cancelados/falhados): exclui se a janela reservada se sobrepõe à
+//    janela pedida.
+export async function getAvailableAssetsForDate(deliveryDate: string, returnDate: string) {
+  const { tenantId } = await requireUserAndTenant();
+  if (!deliveryDate || !returnDate) return [];
+
+  const assetsSnap = await adminDb.collection('assets')
+    .where('tenant_id', '==', tenantId)
+    .where('status', 'in', ['DISPONIVEL', 'LOCADA'])
+    .get();
+
+  const candidates = assetsSnap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() } as any))
+    .filter((a) => a.status === 'DISPONIVEL' || (a.expected_return_date && a.expected_return_date < deliveryDate));
+
+  if (candidates.length === 0) return [];
+
+  const candidateIds = candidates.map((a) => a.id);
+
+  // Cada linha de pedido gera 2 jobs (entrega + coleta) com o mesmo
+  // expected_asset_id — a janela reservada daquele pedido pra essa caçamba é
+  // [menor data, maior data] entre os dois.
+  const reservedWindowsByAsset = new Map<string, { start: string; end: string }[]>();
+
+  for (const idsChunk of chunk(candidateIds, 30)) {
+    const jobsSnap = await adminDb.collectionGroup('jobs')
+      .where('tenant_id', '==', tenantId)
+      .where('expected_asset_id', 'in', idsChunk)
+      .get();
+
+    const windowsByOrderAsset = new Map<string, { assetId: string; start: string; end: string }>();
+    jobsSnap.docs.forEach((doc) => {
+      const job = doc.data() as any;
+      if (job.status === 'CANCELADO' || job.status === 'FALHADO') return;
+      const assetId = job.expected_asset_id as string;
+      const date = job.scheduled_date as string;
+      if (!assetId || !date) return;
+      const key = `${job.order_id}__${assetId}`;
+      const existing = windowsByOrderAsset.get(key);
+      if (!existing) {
+        windowsByOrderAsset.set(key, { assetId, start: date, end: date });
+      } else {
+        if (date < existing.start) existing.start = date;
+        if (date > existing.end) existing.end = date;
+      }
+    });
+
+    windowsByOrderAsset.forEach(({ assetId, start, end }) => {
+      const list = reservedWindowsByAsset.get(assetId) ?? [];
+      list.push({ start, end });
+      reservedWindowsByAsset.set(assetId, list);
+    });
+  }
+
+  const available = candidates.filter((a) => {
+    const windows = reservedWindowsByAsset.get(a.id);
+    if (!windows) return true;
+    return !windows.some((w) => w.start <= returnDate && w.end >= deliveryDate);
+  });
+
+  const withTypes = await Promise.all(available.map(async (a) => {
+    let asset_types = null;
+    if (a.asset_type_id) {
+      const typeDoc = await adminDb.collection('asset_types').doc(a.asset_type_id).get();
+      if (typeDoc.exists) asset_types = typeDoc.data();
+    }
+    return {
+      id: a.id,
+      identifier: a.identifier ?? null,
+      asset_type_id: a.asset_type_id ?? null,
+      asset_types,
+      status: a.status,
+    };
+  }));
+
+  return withTypes.sort((a, b) => (a.identifier || '').localeCompare(b.identifier || ''));
+}
+
 // Caçambas que esse cliente já tem alugadas (status LOCADA) agora — usado no
 // formulário de novo pedido pra avisar antes de criar mais uma entrega.
 export async function getActiveRentalsForCustomer(customerId: string) {

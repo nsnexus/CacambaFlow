@@ -192,12 +192,16 @@ export function JobBoard({ initialJobs, drivers, vehicles, assets }: JobBoardPro
       {assigningJob && (() => {
         const job = jobs.find(j => j.id === assigningJob);
         const needsAsset = JOB_TYPES_NEED_ASSET.includes(job?.job_type);
-        // O pedido já diz que tamanho de caçamba o cliente pediu
-        // (expected_asset_type_id) — pré-seleciona a primeira disponível
-        // desse tipo em vez de deixar o despachante escolher do zero toda vez.
-        const autoAsset = job?.expected_asset_type_id
-          ? assets.find(a => a.asset_type_id === job.expected_asset_type_id)
-          : undefined;
+        // O pedido já reserva uma caçamba específica na hora da criação
+        // (expected_asset_id) — pré-seleciona ela em vez de deixar o
+        // despachante escolher do zero. Pedidos antigos, de antes dessa
+        // reserva por unidade, só guardavam o tamanho (expected_asset_type_id)
+        // — nesse caso cai pro tipo como fallback.
+        const autoAsset = job?.expected_asset_id
+          ? assets.find(a => a.id === job.expected_asset_id)
+          : job?.expected_asset_type_id
+            ? assets.find(a => a.asset_type_id === job.expected_asset_type_id)
+            : undefined;
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
             <div className="card" style={{ width: '400px' }}>

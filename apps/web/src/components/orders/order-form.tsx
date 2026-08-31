@@ -2,7 +2,7 @@
 
 import { useFormState, useFormStatus } from 'react-dom';
 import { createOrder, type OrderFormState } from '@/app/actions/orders';
-import { getActiveRentalsForCustomer } from '@/app/actions/assets';
+import { getActiveRentalsForCustomer, getAvailableAssetsForDate } from '@/app/actions/assets';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -13,6 +13,12 @@ type ActiveRental = {
   address: { name?: string; street?: string; number?: string } | null;
   delivered_at: string | null;
   expected_return_date: string | null;
+};
+
+type AvailableAsset = {
+  id: string;
+  identifier: string | null;
+  asset_types: { name?: string; volume_m3?: number } | null;
 };
 
 function SubmitButton() {
@@ -27,16 +33,22 @@ function SubmitButton() {
 // Interfaces simplificadas para os dados baseados em fetch
 interface Customer { id: string; name: string; document: string }
 interface Address { id: string; name: string; street: string; number: string; city: string }
-interface AssetType { id: string; name: string; volume_m3: number }
 
-export function OrderForm({ 
-  customers, 
-  addresses, 
-  assetTypes 
-}: { 
-  customers: Customer[], 
-  addresses: Address[], 
-  assetTypes: AssetType[] 
+type JobRow = {
+  id: number;
+  scheduledDate: string;
+  returnDate: string;
+  assetId: string;
+  availableAssets: AvailableAsset[];
+  loadingAssets: boolean;
+};
+
+export function OrderForm({
+  customers,
+  addresses,
+}: {
+  customers: Customer[],
+  addresses: Address[],
 }) {
   const [state, action] = useFormState<OrderFormState, FormData>(createOrder, {});
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -44,7 +56,49 @@ export function OrderForm({
   const [checkingRentals, setCheckingRentals] = useState(false);
 
   // Lista dinâmica de atendimentos dentro do formulário
-  const [jobs, setJobs] = useState([{ id: 1 }]);
+  const [jobs, setJobs] = useState<JobRow[]>([
+    { id: 1, scheduledDate: '', returnDate: '', assetId: '', availableAssets: [], loadingAssets: false },
+  ]);
+
+  // Busca as caçambas específicas realmente livres pra janela [entrega,
+  // recolhimento] daquela linha assim que as duas datas estiverem
+  // preenchidas — se o pedido é pra amanhã, só mostra as que estarão livres
+  // amanhã (considerando locações em andamento e reservas de outros pedidos).
+  function refreshAvailableAssets(jobId: number, scheduledDate: string, returnDate: string) {
+    setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, loadingAssets: !!(scheduledDate && returnDate) } : j)));
+
+    if (!scheduledDate || !returnDate) {
+      setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, availableAssets: [], assetId: '', loadingAssets: false } : j)));
+      return;
+    }
+
+    getAvailableAssetsForDate(scheduledDate, returnDate)
+      .then((assets) => {
+        setJobs((prev) => prev.map((j) => {
+          if (j.id !== jobId) return j;
+          // Mantém a escolha atual se ela ainda estiver na lista de disponíveis
+          const stillAvailable = j.assetId && assets.some((a: any) => a.id === j.assetId);
+          return {
+            ...j,
+            availableAssets: assets as AvailableAsset[],
+            assetId: stillAvailable ? j.assetId : '',
+            loadingAssets: false,
+          };
+        }));
+      })
+      .catch(() => {
+        setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, availableAssets: [], loadingAssets: false } : j)));
+      });
+  }
+
+  function updateJobDate(jobId: number, field: 'scheduledDate' | 'returnDate', value: string) {
+    setJobs((prev) => {
+      const next = prev.map((j) => (j.id === jobId ? { ...j, [field]: value } : j));
+      const updated = next.find((j) => j.id === jobId)!;
+      refreshAvailableAssets(jobId, updated.scheduledDate, updated.returnDate);
+      return next;
+    });
+  }
 
   const filteredAddresses = addresses.filter(a => (a as any).customer_id === selectedCustomer);
 
@@ -147,7 +201,7 @@ export function OrderForm({
           <button
             type="button"
             className="btn btn--secondary btn--sm"
-            onClick={() => setJobs([...jobs, { id: Date.now() }])}
+            onClick={() => setJobs([...jobs, { id: Date.now(), scheduledDate: '', returnDate: '', assetId: '', availableAssets: [], loadingAssets: false }])}
           >
             + Adicionar Serviço
           </button>
@@ -161,25 +215,59 @@ export function OrderForm({
             <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
               <div className="form-group">
                 <label className="label">Data Prevista da Entrega *</label>
-                <input name={`jobs[${index}][scheduled_date]`} type="date" className="input" required />
+                <input
+                  name={`jobs[${index}][scheduled_date]`}
+                  type="date"
+                  className="input"
+                  required
+                  value={job.scheduledDate}
+                  onChange={(e) => updateJobDate(job.id, 'scheduledDate', e.target.value)}
+                />
               </div>
               <div className="form-group">
                 <label className="label">Data Prevista do Recolhimento *</label>
-                <input name={`jobs[${index}][expected_return_date]`} type="date" className="input" required />
+                <input
+                  name={`jobs[${index}][expected_return_date]`}
+                  type="date"
+                  className="input"
+                  required
+                  value={job.returnDate}
+                  onChange={(e) => updateJobDate(job.id, 'returnDate', e.target.value)}
+                />
               </div>
               <div className="form-group">
-                <label className="label">Tamanho da Caçamba</label>
-                <select name={`jobs[${index}][expected_asset_type_id]`} className="input">
-                  <option value="">Qualquer tamanho...</option>
-                  {assetTypes.map(at => (
-                    <option key={at.id} value={at.id}>{at.name} ({at.volume_m3}m³)</option>
+                <label className="label">Caçamba *</label>
+                <select
+                  name={`jobs[${index}][expected_asset_id]`}
+                  className="input"
+                  required
+                  disabled={!job.scheduledDate || !job.returnDate}
+                  value={job.assetId}
+                  onChange={(e) => setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, assetId: e.target.value } : j)))}
+                >
+                  <option value="">
+                    {!job.scheduledDate || !job.returnDate
+                      ? 'Preencha as datas primeiro...'
+                      : job.loadingAssets
+                        ? 'Verificando disponibilidade...'
+                        : job.availableAssets.length === 0
+                          ? 'Nenhuma caçamba livre nessas datas'
+                          : 'Selecione a caçamba...'}
+                  </option>
+                  {job.availableAssets.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.identifier}{a.asset_types?.name ? ` — ${a.asset_types.name}${a.asset_types.volume_m3 ? ` (${a.asset_types.volume_m3}m³)` : ''}` : ''}
+                    </option>
                   ))}
                 </select>
+                {job.scheduledDate && job.returnDate && !job.loadingAssets && job.availableAssets.length === 0 && (
+                  <p className="form-error">Nenhuma caçamba está livre nesse período — tente outras datas.</p>
+                )}
               </div>
             </div>
             {jobs.length > 1 && (
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setJobs(jobs.filter(j => j.id !== job.id))}
                 style={{ position: 'absolute', top: '16px', right: '16px', color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
               >
