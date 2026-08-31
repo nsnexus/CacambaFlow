@@ -4,6 +4,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { FaturarBtn } from '@/components/billing/faturar-btn';
 import { PagarBtn } from '@/components/billing/pagar-btn';
+import { FinanceCharts } from '@/components/billing/finance-charts';
 
 export const metadata: Metadata = { title: 'Financeiro — CaçambaFlow' };
 
@@ -29,6 +30,32 @@ export default async function FinanceiroPage() {
       return createdAt && createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear();
     })
     .reduce((acc, curr: any) => acc + Number(curr.amount), 0);
+
+  // Faturamento dos últimos 6 meses (incluindo o atual), pro gráfico de barras.
+  const monthlyData = Array.from({ length: 6 }).map((_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    const total = invoices
+      .filter((inv: any) => {
+        const createdAt = inv.created_at?.toDate ? inv.created_at.toDate() : inv.created_at ? new Date(inv.created_at) : null;
+        return createdAt && createdAt.getMonth() === d.getMonth() && createdAt.getFullYear() === d.getFullYear();
+      })
+      .reduce((acc: number, curr: any) => acc + Number(curr.amount), 0);
+    return { label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''), value: total };
+  });
+
+  // Faturas por status — mesmas cores usadas no StatusBadge/resto do painel.
+  const statusData = [
+    { key: 'PAGO', label: 'Pago', color: 'var(--color-success)' },
+    { key: 'PENDENTE', label: 'Pendente', color: 'var(--color-warning)' },
+    { key: 'ATRASADO', label: 'Atrasado', color: 'var(--color-danger)' },
+  ].map((s) => {
+    const matching = invoices.filter((i: any) => i.status === s.key);
+    return {
+      ...s,
+      value: matching.reduce((acc: number, curr: any) => acc + Number(curr.amount), 0),
+      count: matching.length,
+    };
+  });
 
   return (
     <div>
@@ -64,6 +91,8 @@ export default async function FinanceiroPage() {
           <p style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 'var(--space-2)' }}>R$ {totalRecebido.toFixed(2)}</p>
         </div>
       </div>
+
+      <FinanceCharts monthlyData={monthlyData} statusData={statusData} />
 
       {/* Seção 1: Ordens aguardando faturamento */}
       <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: 'var(--space-4)' }}>Pedidos Aguardando Faturamento</h2>
