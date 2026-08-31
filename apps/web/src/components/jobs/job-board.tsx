@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { dispatchJob, unassignJob } from '@/app/actions/jobs';
 import { UserRound, Truck, Container } from 'lucide-react';
@@ -25,6 +25,14 @@ export function JobBoard({ initialJobs, drivers, vehicles, assets }: JobBoardPro
   // Para MVP, não faremos drag and drop real. Faremos modals simples/ações em linha para atribuir
   const [jobs, setJobs] = useState(initialJobs);
   const [assigningJob, setAssigningJob] = useState<string | null>(null);
+
+  // useState(initialJobs) só usa o valor inicial na primeira renderização —
+  // sem isso, o router.refresh() da página pai (AutoRefresh) buscava dados
+  // novos do Firestore mas o board nunca refletia, porque `jobs` já tinha
+  // "travado" no valor da primeira carga. Sincroniza sempre que o prop mudar.
+  useEffect(() => {
+    setJobs(initialJobs);
+  }, [initialJobs]);
 
   const pendentes = jobs.filter(j => j.status === 'PENDENTE' || j.status === 'REAGENDADO' || j.status === 'RASCUNHO');
   const atribuidos = jobs.filter(j => j.status === 'ATRIBUIDO');

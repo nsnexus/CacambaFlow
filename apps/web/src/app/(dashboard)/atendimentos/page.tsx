@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getJobsForDispatch, getAvailableAssetsForDispatch } from '@/app/actions/jobs';
 import { JobBoard } from '@/components/jobs/job-board';
+import { AutoRefresh } from '@/components/auto-refresh';
 
 export const metadata: Metadata = { title: 'Despacho (Kanban) — CaçambaFlow' };
 
@@ -50,6 +51,7 @@ export default async function AtendimentosPage({
 
   return (
     <div>
+      <AutoRefresh intervalMs={10000} />
       <div className="flex items-center justify-between" style={{ marginBottom: 'var(--space-6)' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Despacho Operacional</h1>
