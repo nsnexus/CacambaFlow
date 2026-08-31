@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { GoogleMap, MarkerF, InfoWindowF, useJsApiLoader } from '@react-google-maps/api';
 
-type TelemetryPoint = {
+export type TelemetryPoint = {
   id?: string;
   driver: { profiles: { name: string } };
   location: {
@@ -16,7 +16,7 @@ type TelemetryPoint = {
   isEmRota?: boolean;
 };
 
-type FleetAsset = {
+export type FleetAsset = {
   id: string;
   identifier: string;
   asset_types?: { name: string } | null;
@@ -27,6 +27,7 @@ type FleetAsset = {
 };
 
 const containerStyle = { width: '100%', height: '100%', borderRadius: 'var(--radius-lg)' };
+const DEFAULT_CENTER = { lat: -23.5505, lng: -46.6333 }; // fallback: São Paulo
 
 // Círculo colorido (online/offline) com um caminhão desenhado por cima — o
 // label do Marker fica centralizado sobre o icon, então dá pra combinar os
@@ -70,21 +71,59 @@ function formatDate(dateStr: string | null | undefined) {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString('pt-BR');
 }
 
-export function FleetMap({ telemetry, assets = [] }: { telemetry: TelemetryPoint[]; assets?: FleetAsset[] }) {
+export function FleetMap({
+  telemetry,
+  assets = [],
+  selectedDriverIdx = null,
+  selectedAssetId = null,
+}: {
+  telemetry: TelemetryPoint[];
+  assets?: FleetAsset[];
+  selectedDriverIdx?: number | null;
+  selectedAssetId?: string | null;
+}) {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
   });
+  const mapRef = useRef<google.maps.Map | null>(null);
   const [activeDriver, setActiveDriver] = useState<number | null>(null);
   const [activeAsset, setActiveAsset] = useState<string | null>(null);
 
   const points = telemetry.filter((t) => t.location?.latitude && t.location?.longitude);
   const assetPoints = assets.filter((a) => a.address?.latitude && a.address?.longitude);
 
-  const first = points[0];
-  const center = first
-    ? { lat: first.location.latitude, lng: first.location.longitude }
-    : { lat: -23.5505, lng: -46.6333 }; // fallback: São Paulo
+  // Centro só é calculado UMA VEZ (lazy initializer do useState) — se
+  // recalculássemos a cada render, o Centro de Controle "puxava" o mapa de
+  // volta pro motorista a cada atualização automática (10s), atrapalhando
+  // quem tava navegando/olhando outra parte do mapa. Pan/zoom manual do
+  // usuário fica intocado depois disso; só muda via seleção explícita
+  // (sidebar), tratada abaixo com panTo imperativo.
+  const [initialCenter] = useState(() => {
+    if (points[0]) return { lat: points[0].location.latitude, lng: points[0].location.longitude };
+    if (assetPoints[0]?.address) return { lat: assetPoints[0].address.latitude!, lng: assetPoints[0].address.longitude! };
+    return DEFAULT_CENTER;
+  });
+
+  // Seleção explícita (clique na lista lateral) pan+zoom pro motorista.
+  useEffect(() => {
+    if (selectedDriverIdx == null || !mapRef.current) return;
+    const t = points[selectedDriverIdx];
+    if (!t) return;
+    mapRef.current.panTo({ lat: t.location.latitude, lng: t.location.longitude });
+    mapRef.current.setZoom(15);
+    setActiveDriver(selectedDriverIdx);
+  }, [selectedDriverIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Seleção explícita (clique na lista lateral) pan+zoom pra caçamba.
+  useEffect(() => {
+    if (!selectedAssetId || !mapRef.current) return;
+    const a = assetPoints.find((p) => p.id === selectedAssetId);
+    if (!a?.address?.latitude || !a?.address?.longitude) return;
+    mapRef.current.panTo({ lat: a.address.latitude, lng: a.address.longitude });
+    mapRef.current.setZoom(16);
+    setActiveAsset(selectedAssetId);
+  }, [selectedAssetId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isLoaded) {
     return (
@@ -97,8 +136,9 @@ export function FleetMap({ telemetry, assets = [] }: { telemetry: TelemetryPoint
   return (
     <GoogleMap
       mapContainerStyle={containerStyle}
-      center={center}
-      zoom={points.length ? 12 : 4}
+      center={initialCenter}
+      zoom={points.length || assetPoints.length ? 12 : 4}
+      onLoad={(map) => { mapRef.current = map; }}
       options={{ streetViewControl: false, mapTypeControl: true, fullscreenControl: false }}
     >
       {points.map((t, idx) => {
