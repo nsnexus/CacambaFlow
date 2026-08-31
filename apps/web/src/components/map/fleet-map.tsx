@@ -45,18 +45,23 @@ function driverIcon(isOnline: boolean) {
   };
 }
 
-// Pin da caçamba (mesmo visual usado em asset-map.tsx) — cor diferente da do
-// motorista pra distinguir de longe no mapa combinado.
+// Ícone de caçamba (skip/dumpster) de verdade — corpo trapezoidal mais largo
+// em cima, aba na borda e nervuras verticais, nas cores da marca. Nada de pin
+// genérico ou balde.
 function assetIcon() {
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="30" viewBox="0 0 28 34">
-      <path d="M14 0C6.3 0 0 6.3 0 14c0 10 14 20 14 20s14-10 14-20c0-7.7-6.3-14-14-14z" fill="#3B82F6" stroke="#fff" stroke-width="2"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="30" viewBox="0 0 32 30">
+      <path d="M4 8 L28 8 L24 26 L8 26 Z" fill="#F97316" stroke="#fff" stroke-width="2"/>
+      <rect x="2" y="5" width="28" height="4" rx="1" fill="#C2410C" stroke="#fff" stroke-width="1.5"/>
+      <line x1="10" y1="9" x2="9" y2="25" stroke="#C2410C" stroke-width="1.5"/>
+      <line x1="16" y1="9" x2="16" y2="25" stroke="#C2410C" stroke-width="1.5"/>
+      <line x1="22" y1="9" x2="23" y2="25" stroke="#C2410C" stroke-width="1.5"/>
     </svg>
   `;
   return {
     url: `data:image/svg+xml;base64,${typeof window !== 'undefined' ? window.btoa(svg) : ''}`,
-    scaledSize: typeof window !== 'undefined' && window.google ? new window.google.maps.Size(24, 30) : undefined,
-    anchor: typeof window !== 'undefined' && window.google ? new window.google.maps.Point(12, 30) : undefined,
+    scaledSize: typeof window !== 'undefined' && window.google ? new window.google.maps.Size(32, 30) : undefined,
+    anchor: typeof window !== 'undefined' && window.google ? new window.google.maps.Point(16, 26) : undefined,
   };
 }
 
@@ -94,7 +99,7 @@ export function FleetMap({ telemetry, assets = [] }: { telemetry: TelemetryPoint
       mapContainerStyle={containerStyle}
       center={center}
       zoom={points.length ? 12 : 4}
-      options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
+      options={{ streetViewControl: false, mapTypeControl: true, fullscreenControl: false }}
     >
       {points.map((t, idx) => {
         const diffMin = Math.floor((Date.now() - new Date(t.location.device_timestamp).getTime()) / 60000);
@@ -107,6 +112,8 @@ export function FleetMap({ telemetry, assets = [] }: { telemetry: TelemetryPoint
             icon={driverIcon(isOnline)}
             label={{ text: '🚚', fontSize: '14px' }}
             zIndex={999}
+            onMouseOver={() => setActiveDriver(idx)}
+            onMouseOut={() => setActiveDriver(null)}
             onClick={() => setActiveDriver(idx)}
           >
             {activeDriver === idx && (
@@ -137,6 +144,8 @@ export function FleetMap({ telemetry, assets = [] }: { telemetry: TelemetryPoint
           position={{ lat: a.address!.latitude!, lng: a.address!.longitude! }}
           icon={assetIcon()}
           title={a.identifier}
+          onMouseOver={() => setActiveAsset(a.id)}
+          onMouseOut={() => setActiveAsset(null)}
           onClick={() => setActiveAsset(a.id)}
         >
           {activeAsset === a.id && (

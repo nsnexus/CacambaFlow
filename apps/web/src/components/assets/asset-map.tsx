@@ -16,18 +16,23 @@ export type DeliveredAsset = {
 
 const containerStyle = { width: '100%', height: '100%' };
 
-// Mesmo formato de "pin" gota que era feito com L.divIcon no Leaflet (círculo
-// com uma ponta), como SVG embutido.
+// Ícone de caçamba (skip/dumpster) de verdade — corpo trapezoidal mais largo
+// em cima, aba na borda e nervuras verticais, nas cores da marca. Nada de pin
+// genérico ou balde.
 function pinIcon() {
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="34" viewBox="0 0 28 34">
-      <path d="M14 0C6.3 0 0 6.3 0 14c0 10 14 20 14 20s14-10 14-20c0-7.7-6.3-14-14-14z" fill="#F97316" stroke="#fff" stroke-width="2"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="30" viewBox="0 0 32 30">
+      <path d="M4 8 L28 8 L24 26 L8 26 Z" fill="#F97316" stroke="#fff" stroke-width="2"/>
+      <rect x="2" y="5" width="28" height="4" rx="1" fill="#C2410C" stroke="#fff" stroke-width="1.5"/>
+      <line x1="10" y1="9" x2="9" y2="25" stroke="#C2410C" stroke-width="1.5"/>
+      <line x1="16" y1="9" x2="16" y2="25" stroke="#C2410C" stroke-width="1.5"/>
+      <line x1="22" y1="9" x2="23" y2="25" stroke="#C2410C" stroke-width="1.5"/>
     </svg>
   `;
   return {
     url: `data:image/svg+xml;base64,${typeof window !== 'undefined' ? window.btoa(svg) : ''}`,
-    scaledSize: typeof window !== 'undefined' && window.google ? new window.google.maps.Size(28, 34) : undefined,
-    anchor: typeof window !== 'undefined' && window.google ? new window.google.maps.Point(14, 34) : undefined,
+    scaledSize: typeof window !== 'undefined' && window.google ? new window.google.maps.Size(32, 30) : undefined,
+    anchor: typeof window !== 'undefined' && window.google ? new window.google.maps.Point(16, 26) : undefined,
   };
 }
 
@@ -77,7 +82,7 @@ export function AssetMap({ assets, selectedId, onSelect }: { assets: DeliveredAs
       center={center}
       zoom={points.length ? 12 : 4}
       onLoad={(map) => { mapRef.current = map; }}
-      options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
+      options={{ streetViewControl: false, mapTypeControl: true, fullscreenControl: false }}
     >
       {points.map((a) => (
         <MarkerF
@@ -85,6 +90,8 @@ export function AssetMap({ assets, selectedId, onSelect }: { assets: DeliveredAs
           position={{ lat: a.address!.latitude!, lng: a.address!.longitude! }}
           icon={pinIcon()}
           title={`${a.identifier}${a.customer?.name ? ' — ' + a.customer.name : ''}`}
+          onMouseOver={() => setActiveId(a.id)}
+          onMouseOut={() => setActiveId((current) => (current === a.id ? null : current))}
           onClick={() => {
             onSelect(a.id);
             setActiveId(a.id);
