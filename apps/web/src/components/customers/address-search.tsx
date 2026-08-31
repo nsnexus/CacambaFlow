@@ -2,68 +2,32 @@
 
 import { useState } from 'react';
 import { Search } from 'lucide-react';
+import { geocodeAddress, type GeocodeResult } from '@/app/actions/geocoding';
 
-const STATE_NAME_TO_UF: Record<string, string> = {
-  'acre': 'AC', 'alagoas': 'AL', 'amapá': 'AP', 'amapa': 'AP', 'amazonas': 'AM',
-  'bahia': 'BA', 'ceará': 'CE', 'ceara': 'CE', 'distrito federal': 'DF',
-  'espírito santo': 'ES', 'espirito santo': 'ES', 'goiás': 'GO', 'goias': 'GO',
-  'maranhão': 'MA', 'maranhao': 'MA', 'mato grosso': 'MT', 'mato grosso do sul': 'MS',
-  'minas gerais': 'MG', 'pará': 'PA', 'para': 'PA', 'paraíba': 'PB', 'paraiba': 'PB',
-  'paraná': 'PR', 'parana': 'PR', 'pernambuco': 'PE', 'piauí': 'PI', 'piaui': 'PI',
-  'rio de janeiro': 'RJ', 'rio grande do norte': 'RN', 'rio grande do sul': 'RS',
-  'rondônia': 'RO', 'rondonia': 'RO', 'roraima': 'RR', 'santa catarina': 'SC',
-  'são paulo': 'SP', 'sao paulo': 'SP', 'sergipe': 'SE', 'tocantins': 'TO',
-};
-
-export type AddressSearchResult = {
-  displayName: string;
-  street: string;
-  number: string;
-  district: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  latitude: number;
-  longitude: number;
-};
-
-type NominatimResult = {
-  display_name: string;
-  lat: string;
-  lon: string;
-  address: Record<string, string>;
-};
-
-async function searchNominatim(q: string): Promise<NominatimResult[]> {
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=br&limit=5&q=${encodeURIComponent(q)}`;
-  const res = await fetch(url);
-  return res.json();
-}
+export type AddressSearchResult = GeocodeResult;
 
 export function AddressSearch({ onSelect }: { onSelect: (result: AddressSearchResult) => void }) {
   const [query, setQuery] = useState('');
   const [cep, setCep] = useState('');
-  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [results, setResults] = useState<GeocodeResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [approximate, setApproximate] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState('');
 
-  // O Nominatim (OpenStreetMap) tem cobertura de rua bem fraca em cidade
-  // pequena/média no Brasil — a busca "crua" que o usuário digitou às vezes
-  // não acha nada. Em vez de simplesmente falhar, afrouxa a busca aos poucos
-  // (tira o último pedaço separado por vírgula) até achar pelo menos algo
-  // aproximado — melhor um resultado no nível do bairro/cidade pra ajustar o
-  // pino manualmente do que nada.
+  // Mesmo com o Google Geocoding (cobertura bem melhor que o Nominatim usado
+  // antes), uma busca digitada estranha ainda pode não achar nada. Em vez de
+  // simplesmente falhar, afrouxa aos poucos (tira o último pedaço separado
+  // por vírgula) até achar ao menos algo aproximado.
   async function searchWithFallback(q: string) {
     let attempt = q;
-    let data = await searchNominatim(attempt);
+    let data = await geocodeAddress(attempt);
     let loosened = false;
     while (data.length === 0 && attempt.includes(',')) {
       attempt = attempt.slice(0, attempt.lastIndexOf(',')).trim();
       if (!attempt) break;
-      data = await searchNominatim(attempt);
+      data = await geocodeAddress(attempt);
       loosened = true;
     }
     setApproximate(loosened && data.length > 0);
@@ -85,9 +49,8 @@ export function AddressSearch({ onSelect }: { onSelect: (result: AddressSearchRe
   }
 
   // CEP é dado oficial dos Correios (ViaCEP) — nome de rua/bairro/cidade sai
-  // certo mesmo em cidade pequena onde o OpenStreetMap não tem nada mapeado.
-  // Usa isso pra montar uma busca melhor em vez de depender só do que o
-  // usuário digitou de cabeça.
+  // certo mesmo em cidade pequena. Usa isso pra montar uma busca melhor em
+  // vez de depender só do que o usuário digitou de cabeça.
   async function handleCepLookup(e: React.FormEvent) {
     e.preventDefault();
     const digits = cep.replace(/\D/g, '');
@@ -122,23 +85,11 @@ export function AddressSearch({ onSelect }: { onSelect: (result: AddressSearchRe
     }
   }
 
-  function handlePick(r: NominatimResult) {
-    const a = r.address || {};
-    const stateRaw = (a.state || '').toLowerCase();
-    onSelect({
-      displayName: r.display_name,
-      street: a.road || a.pedestrian || '',
-      number: a.house_number || '',
-      district: a.suburb || a.neighbourhood || a.village || '',
-      city: a.city || a.town || a.municipality || '',
-      state: STATE_NAME_TO_UF[stateRaw] || '',
-      postal_code: a.postcode || '',
-      latitude: parseFloat(r.lat),
-      longitude: parseFloat(r.lon),
-    });
+  function handlePick(r: GeocodeResult) {
+    onSelect(r);
     setResults([]);
     setApproximate(false);
-    setQuery(r.display_name);
+    setQuery(r.displayName);
   }
 
   return (
@@ -206,7 +157,7 @@ export function AddressSearch({ onSelect }: { onSelect: (result: AddressSearchRe
                 cursor: 'pointer',
               }}
             >
-              {r.display_name}
+              {r.displayName}
             </button>
           ))}
         </div>
