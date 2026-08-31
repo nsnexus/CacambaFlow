@@ -155,9 +155,12 @@ export default function JobDetailScreen() {
 
   const routeMapHtml = useMemo(() => {
     if (!job || !destinationCoords) return null;
-    return buildMapHtml(null, [
-      { id: job.id, label: job.customerName, color: theme.colors.primary, latitude: destinationCoords.latitude, longitude: destinationCoords.longitude },
-    ]);
+    return buildMapHtml(
+      null,
+      [{ id: job.id, label: job.customerName, color: theme.colors.primary, latitude: destinationCoords.latitude, longitude: destinationCoords.longitude }],
+      undefined,
+      { drawRouteFromDriver: true }
+    );
   }, [job?.id, destinationCoords]);
   const routeMapSource = useMemo(() => (routeMapHtml ? { html: routeMapHtml } : null), [routeMapHtml]);
 
