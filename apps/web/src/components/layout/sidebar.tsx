@@ -17,6 +17,7 @@ import {
   Building2,
   Inbox,
   Settings,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -24,6 +25,7 @@ const navItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/atendimentos', label: 'Atendimentos', icon: ClipboardList },
   { href: '/pedidos', label: 'Pedidos', icon: Package },
+  { href: '/financeiro', label: 'Financeiro', icon: Wallet },
   { href: '/motoristas', label: 'Motoristas', icon: UserRound },
   { href: '/veiculos', label: 'Veículos', icon: Truck },
   { href: '/cacambas', label: 'Caçambas', icon: Container },
