@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Pencil } from 'lucide-react';
 import { getVehicleById } from '@/app/actions/vehicles';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { VehicleStatusSelect } from '@/components/vehicles/vehicle-status-select';
+import { IconLinkButton } from '@/components/ui/icon-link-button';
 
 export const metadata: Metadata = { title: 'Veículo — CaçambaFlow' };
 
@@ -33,6 +35,7 @@ export default async function VeiculoDetailPage({ params }: { params: { id: stri
           <div className="flex items-center gap-2">
             <StatusBadge status={vehicle?.status ?? 'ATIVO'} />
             <VehicleStatusSelect vehicleId={params.id} status={(vehicle?.status as 'ATIVO' | 'MANUTENCAO' | 'INATIVO') ?? 'ATIVO'} />
+            <IconLinkButton href={`/veiculos/${params.id}/editar`} icon={Pencil} label="Editar" />
           </div>
         </div>
 

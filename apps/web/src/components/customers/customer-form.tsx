@@ -1,10 +1,21 @@
 'use client';
 
 import { useFormState, useFormStatus } from 'react-dom';
-import { createCustomer, type CustomerFormState } from '@/app/actions/customers';
+import { createCustomer, updateCustomer, type CustomerFormState } from '@/app/actions/customers';
 import Link from 'next/link';
 
-function SubmitButton() {
+type Customer = {
+  id: string;
+  person_type: 'PF' | 'PJ';
+  name: string;
+  document?: string;
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  notes?: string;
+};
+
+function SubmitButton({ isEdit }: { isEdit: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -14,16 +25,17 @@ function SubmitButton() {
       disabled={pending}
       aria-disabled={pending}
     >
-      {pending ? 'Salvando...' : 'Salvar Cliente'}
+      {pending ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Salvar Cliente'}
     </button>
   );
 }
 
-export function CustomerForm() {
-  const [state, action] = useFormState<CustomerFormState, FormData>(createCustomer, {});
+export function CustomerForm({ customer }: { customer?: Customer }) {
+  const action = customer ? updateCustomer.bind(null, customer.id) : createCustomer;
+  const [state, formAction] = useFormState<CustomerFormState, FormData>(action, {});
 
   return (
-    <form action={action} noValidate>
+    <form action={formAction} noValidate>
       {state.message && (
         <div
           id="form-error-message"
@@ -47,7 +59,7 @@ export function CustomerForm() {
         <div className="form-grid">
           <div className="form-group">
             <label className="label" htmlFor="customer-person-type">Tipo *</label>
-            <select id="customer-person-type" name="person_type" className="input" required defaultValue="PF">
+            <select id="customer-person-type" name="person_type" className="input" required defaultValue={customer?.person_type ?? 'PF'}>
               <option value="PF">Pessoa Física</option>
               <option value="PJ">Pessoa Jurídica</option>
             </select>
@@ -55,12 +67,12 @@ export function CustomerForm() {
           </div>
           <div className="form-group">
             <label className="label" htmlFor="customer-name">Nome *</label>
-            <input id="customer-name" name="name" type="text" className="input" required placeholder="João da Silva" />
+            <input id="customer-name" name="name" type="text" className="input" required defaultValue={customer?.name} placeholder="João da Silva" />
             {state.errors?.name && <p className="form-error">{state.errors.name[0]}</p>}
           </div>
           <div className="form-group">
             <label className="label" htmlFor="customer-document">CPF / CNPJ</label>
-            <input id="customer-document" name="document" type="text" className="input" placeholder="000.000.000-00" />
+            <input id="customer-document" name="document" type="text" className="input" defaultValue={customer?.document} placeholder="000.000.000-00" />
             {state.errors?.document && <p className="form-error">{state.errors.document[0]}</p>}
           </div>
         </div>
@@ -71,17 +83,17 @@ export function CustomerForm() {
         <div className="form-grid">
           <div className="form-group">
             <label className="label" htmlFor="customer-phone">Telefone</label>
-            <input id="customer-phone" name="phone" type="tel" className="input" placeholder="(11) 99999-9999" />
+            <input id="customer-phone" name="phone" type="tel" className="input" defaultValue={customer?.phone} placeholder="(11) 99999-9999" />
             {state.errors?.phone && <p className="form-error">{state.errors.phone[0]}</p>}
           </div>
           <div className="form-group">
             <label className="label" htmlFor="customer-whatsapp">WhatsApp</label>
-            <input id="customer-whatsapp" name="whatsapp" type="tel" className="input" placeholder="(11) 99999-9999" />
+            <input id="customer-whatsapp" name="whatsapp" type="tel" className="input" defaultValue={customer?.whatsapp} placeholder="(11) 99999-9999" />
             {state.errors?.whatsapp && <p className="form-error">{state.errors.whatsapp[0]}</p>}
           </div>
           <div className="form-group">
             <label className="label" htmlFor="customer-email">E-mail</label>
-            <input id="customer-email" name="email" type="email" className="input" placeholder="joao@empresa.com" />
+            <input id="customer-email" name="email" type="email" className="input" defaultValue={customer?.email} placeholder="joao@empresa.com" />
             {state.errors?.email && <p className="form-error">{state.errors.email[0]}</p>}
           </div>
         </div>
@@ -91,13 +103,13 @@ export function CustomerForm() {
         <h2 className="form-section__title">Observações</h2>
         <div className="form-group">
           <label className="label" htmlFor="customer-notes">Notas</label>
-          <textarea id="customer-notes" name="notes" className="input" rows={3} placeholder="Observações sobre o cliente" />
+          <textarea id="customer-notes" name="notes" className="input" rows={3} defaultValue={customer?.notes} placeholder="Observações sobre o cliente" />
           {state.errors?.notes && <p className="form-error">{state.errors.notes[0]}</p>}
         </div>
       </div>
 
       <div className="flex gap-4" style={{ marginTop: 'var(--space-6)' }}>
-        <SubmitButton />
+        <SubmitButton isEdit={!!customer} />
         <Link href="/clientes" className="btn btn--secondary btn--lg">Cancelar</Link>
       </div>
 

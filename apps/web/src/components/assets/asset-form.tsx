@@ -1,12 +1,13 @@
 'use client';
 
 import { useFormState, useFormStatus } from 'react-dom';
-import { createAsset, type AssetFormState } from '@/app/actions/assets';
+import { createAsset, updateAsset, type AssetFormState } from '@/app/actions/assets';
 import Link from 'next/link';
 
 type AssetType = { id: string; name: string; volume_m3: number };
+type Asset = { id: string; identifier: string; asset_type_id?: string; color?: string };
 
-function SubmitButton() {
+function SubmitButton({ isEdit }: { isEdit: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -16,16 +17,17 @@ function SubmitButton() {
       disabled={pending}
       aria-disabled={pending}
     >
-      {pending ? 'Salvando...' : 'Salvar Caçamba'}
+      {pending ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Salvar Caçamba'}
     </button>
   );
 }
 
-export function AssetForm({ assetTypes }: { assetTypes: AssetType[] }) {
-  const [state, action] = useFormState<AssetFormState, FormData>(createAsset, {});
+export function AssetForm({ assetTypes, asset }: { assetTypes: AssetType[]; asset?: Asset }) {
+  const action = asset ? updateAsset.bind(null, asset.id) : createAsset;
+  const [state, formAction] = useFormState<AssetFormState, FormData>(action, {});
 
   return (
-    <form action={action} noValidate>
+    <form action={formAction} noValidate>
       {state.message && (
         <div
           id="form-error-message"
@@ -67,12 +69,12 @@ export function AssetForm({ assetTypes }: { assetTypes: AssetType[] }) {
       <div className="form-grid">
         <div className="form-group">
           <label className="label" htmlFor="asset-identifier">Número / Identificação *</label>
-          <input id="asset-identifier" name="identifier" type="text" className="input" required placeholder="CB-0001" />
+          <input id="asset-identifier" name="identifier" type="text" className="input" required defaultValue={asset?.identifier} placeholder="CB-0001" />
           {state.errors?.identifier && <p className="form-error">{state.errors.identifier[0]}</p>}
         </div>
         <div className="form-group">
           <label className="label" htmlFor="asset-type">Tipo *</label>
-          <select id="asset-type" name="asset_type_id" className="input" required disabled={assetTypes.length === 0}>
+          <select id="asset-type" name="asset_type_id" className="input" required disabled={assetTypes.length === 0} defaultValue={asset?.asset_type_id ?? ''}>
             <option value="">Selecione...</option>
             {assetTypes.map((t) => (
               <option key={t.id} value={t.id}>{t.name} — {t.volume_m3}m³</option>
@@ -82,12 +84,12 @@ export function AssetForm({ assetTypes }: { assetTypes: AssetType[] }) {
         </div>
         <div className="form-group">
           <label className="label" htmlFor="asset-color">Cor</label>
-          <input id="asset-color" name="color" type="text" className="input" placeholder="Laranja" />
+          <input id="asset-color" name="color" type="text" className="input" defaultValue={asset?.color} placeholder="Laranja" />
         </div>
       </div>
 
       <div className="flex gap-4" style={{ marginTop: 'var(--space-6)' }}>
-        <SubmitButton />
+        <SubmitButton isEdit={!!asset} />
         <Link href="/cacambas" className="btn btn--secondary btn--lg">Cancelar</Link>
       </div>
 

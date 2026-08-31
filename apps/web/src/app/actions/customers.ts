@@ -70,11 +70,8 @@ export async function getCustomerWithAddresses(customerId: string) {
   };
 }
 
-export async function createCustomer(
-  prevState: CustomerFormState,
-  formData: FormData
-): Promise<CustomerFormState> {
-  const rawData = {
+function parseCustomerForm(formData: FormData) {
+  return customerSchema.safeParse({
     person_type: formData.get('person_type') as 'PF' | 'PJ',
     name: formData.get('name') as string,
     document: formData.get('document') as string,
@@ -82,9 +79,14 @@ export async function createCustomer(
     whatsapp: formData.get('whatsapp') as string,
     email: formData.get('email') as string,
     notes: formData.get('notes') as string,
-  };
+  });
+}
 
-  const parsed = customerSchema.safeParse(rawData);
+export async function createCustomer(
+  prevState: CustomerFormState,
+  formData: FormData
+): Promise<CustomerFormState> {
+  const parsed = parseCustomerForm(formData);
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors };
   }
@@ -111,6 +113,35 @@ export async function createCustomer(
 
   revalidatePath('/clientes');
   redirect('/clientes');
+}
+
+export async function updateCustomer(
+  customerId: string,
+  prevState: CustomerFormState,
+  formData: FormData
+): Promise<CustomerFormState> {
+  const parsed = parseCustomerForm(formData);
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const { tenantId } = await requireUserAndTenant();
+
+  const ref = adminDb.collection('customers').doc(customerId);
+  const snap = await ref.get();
+  if (!snap.exists || snap.data()?.tenant_id !== tenantId) {
+    return { message: 'Cliente não encontrado ou sem permissão.' };
+  }
+
+  try {
+    await ref.update({ ...parsed.data, email: parsed.data.email || null });
+  } catch (error: any) {
+    return { message: `Erro ao atualizar cliente: ${error.message}` };
+  }
+
+  revalidatePath('/clientes');
+  revalidatePath(`/clientes/${customerId}`);
+  redirect(`/clientes/${customerId}`);
 }
 
 export async function createAddress(

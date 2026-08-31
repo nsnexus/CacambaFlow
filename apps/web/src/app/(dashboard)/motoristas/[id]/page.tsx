@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Pencil } from 'lucide-react';
 import { getDriverById } from '@/app/actions/drivers';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DriverStatusToggle } from '@/components/drivers/driver-status-toggle';
+import { IconLinkButton } from '@/components/ui/icon-link-button';
 
 export const metadata: Metadata = { title: 'Motorista — CaçambaFlow' };
 
@@ -45,6 +47,7 @@ export default async function MotoristaDetailPage({ params }: { params: { id: st
           <div className="flex items-center gap-2">
             <StatusBadge status={driver?.status ?? 'ATIVO'} />
             <DriverStatusToggle driverId={params.id} status={(driver?.status as 'ATIVO' | 'INATIVO') ?? 'ATIVO'} />
+            <IconLinkButton href={`/motoristas/${params.id}/editar`} icon={Pencil} label="Editar" />
           </div>
         </div>
 

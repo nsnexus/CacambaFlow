@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Pencil } from 'lucide-react';
 import { getAssetById, getCustomersWithAddresses } from '@/app/actions/assets';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { AssetStatusSelect } from '@/components/assets/asset-status-select';
 import { DeliverAssetForm } from '@/components/assets/deliver-asset-form';
 import { ReturnAssetBtn } from '@/components/assets/return-asset-btn';
 import { serializeFirestoreData } from '@/lib/firebase/serialize';
+import { IconLinkButton } from '@/components/ui/icon-link-button';
 
 export const metadata: Metadata = { title: 'Caçamba — CaçambaFlow' };
 
@@ -42,6 +44,7 @@ export default async function CacambaDetailPage({ params }: { params: { id: stri
           <div className="flex items-center gap-2">
             <StatusBadge status={status} />
             <AssetStatusSelect assetId={params.id} status={status as any} />
+            <IconLinkButton href={`/cacambas/${params.id}/editar`} icon={Pencil} label="Editar" />
           </div>
         </div>
 

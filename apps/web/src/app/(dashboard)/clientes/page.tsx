@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Eye, Pencil } from 'lucide-react';
 import { getCustomers, deleteCustomer } from '@/app/actions/customers';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
+import { IconLinkButton } from '@/components/ui/icon-link-button';
 
 export const metadata: Metadata = { title: 'Clientes — CaçambaFlow' };
 
@@ -49,13 +51,8 @@ export default async function ClientesPage() {
         ]}
         actions={(row) => (
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <Link
-              href={`/clientes/${row.id}`}
-              className="btn btn--secondary btn--sm"
-              id={`btn-detail-customer-${row.id}`}
-            >
-              Ver Obras
-            </Link>
+            <IconLinkButton href={`/clientes/${row.id}`} icon={Eye} label="Ver obras" id={`btn-detail-customer-${row.id}`} />
+            <IconLinkButton href={`/clientes/${row.id}/editar`} icon={Pencil} label="Editar" />
             <DeleteEntityButton
               id={row.id as string}
               confirmMessage={`Excluir o cliente ${row.name}? Isso apaga também os endereços (obras) dele. Essa ação não pode ser desfeita.`}

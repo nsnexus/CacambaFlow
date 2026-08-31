@@ -33,11 +33,8 @@ export async function getVehicles() {
   return data.sort((a: any, b: any) => (a.plate || '').localeCompare(b.plate || ''));
 }
 
-export async function createVehicle(
-  prevState: VehicleFormState,
-  formData: FormData
-): Promise<VehicleFormState> {
-  const rawData = {
+function parseVehicleForm(formData: FormData) {
+  return vehicleSchema.safeParse({
     plate: (formData.get('plate') as string)?.toUpperCase().replace(/[^A-Z0-9]/g, ''),
     brand: formData.get('brand') as string,
     model: formData.get('model') as string,
@@ -45,9 +42,14 @@ export async function createVehicle(
     year: formData.get('year') as string,
     vehicle_type: formData.get('vehicle_type') as string,
     capacity: formData.get('capacity') as string,
-  };
+  });
+}
 
-  const parsed = vehicleSchema.safeParse(rawData);
+export async function createVehicle(
+  prevState: VehicleFormState,
+  formData: FormData
+): Promise<VehicleFormState> {
+  const parsed = parseVehicleForm(formData);
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors };
   }
@@ -83,6 +85,44 @@ export async function createVehicle(
 
   revalidatePath('/veiculos');
   redirect('/veiculos');
+}
+
+export async function updateVehicle(
+  vehicleId: string,
+  prevState: VehicleFormState,
+  formData: FormData
+): Promise<VehicleFormState> {
+  const parsed = parseVehicleForm(formData);
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const { tenantId } = await requireUserAndTenant();
+
+  const ref = adminDb.collection('vehicles').doc(vehicleId);
+  const snap = await ref.get();
+  if (!snap.exists || snap.data()?.tenant_id !== tenantId) {
+    return { message: 'Veículo não encontrado ou sem permissão.' };
+  }
+
+  // Placa já em uso por OUTRO veículo (exclui o próprio doc da checagem)
+  const existingSnap = await adminDb.collection('vehicles')
+    .where('tenant_id', '==', tenantId)
+    .where('plate', '==', parsed.data.plate)
+    .get();
+  if (existingSnap.docs.some((d) => d.id !== vehicleId)) {
+    return { message: 'Esta placa já está cadastrada em outro veículo.' };
+  }
+
+  try {
+    await ref.update({ ...parsed.data });
+  } catch (error: any) {
+    return { message: `Erro ao atualizar veículo: ${error.message}` };
+  }
+
+  revalidatePath('/veiculos');
+  revalidatePath(`/veiculos/${vehicleId}`);
+  redirect(`/veiculos/${vehicleId}`);
 }
 
 export async function getVehicleById(vehicleId: string) {

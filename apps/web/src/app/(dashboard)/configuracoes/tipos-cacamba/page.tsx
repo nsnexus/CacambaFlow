@@ -1,8 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getAssetTypes } from '@/app/actions/assets';
+import { Pencil } from 'lucide-react';
+import { getAssetTypes, deleteAssetType } from '@/app/actions/assets';
 import { DataTable } from '@/components/ui/data-table';
 import { SettingsNav } from '@/components/layout/settings-nav';
+import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
+import { IconLinkButton } from '@/components/ui/icon-link-button';
 
 export const metadata: Metadata = { title: 'Tipos de Caçamba — CaçambaFlow' };
 
@@ -30,6 +33,16 @@ export default async function TiposCacambaPage() {
           { key: 'name', label: 'Nome' },
           { key: 'volume_m3', label: 'Volume', render: (val) => `${val}m³` },
         ]}
+        actions={(row) => (
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <IconLinkButton href={`/configuracoes/tipos-cacamba/${row.id}`} icon={Pencil} label="Editar" />
+            <DeleteEntityButton
+              id={row.id as string}
+              confirmMessage={`Excluir o tipo ${row.name}? Essa ação não pode ser desfeita.`}
+              action={deleteAssetType}
+            />
+          </div>
+        )}
       />
     </div>
   );

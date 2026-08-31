@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/web", "run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "calculadora-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "../calculadora-teste", "run", "web"],
+      "port": 8081
+    }
+  ]
+}

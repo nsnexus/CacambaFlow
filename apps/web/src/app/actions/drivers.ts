@@ -24,6 +24,10 @@ export type DriverFormState = {
   resetLink?: string;
 };
 
+// Editar não mexe em e-mail/login (isso é do Firebase Auth, tratado à
+// parte) — só os dados próprios do motorista.
+const driverEditSchema = driverSchema.omit({ email: true });
+
 // --- Listar motoristas ---
 export async function getDrivers() {
   const { tenantId } = await requireUserAndTenant();
@@ -158,6 +162,55 @@ export async function createDriver(
 
   revalidatePath('/motoristas');
   return { success: true, resetLink };
+}
+
+export async function updateDriver(
+  driverId: string,
+  prevState: DriverFormState,
+  formData: FormData
+): Promise<DriverFormState> {
+  const parsed = driverEditSchema.safeParse({
+    name: formData.get('name') as string,
+    phone: formData.get('phone') as string,
+    license_number: formData.get('license_number') as string,
+    license_category: formData.get('license_category') as string,
+    license_expires_at: formData.get('license_expires_at') as string,
+    tracking_enabled: formData.get('tracking_enabled') === 'true',
+  });
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors as any };
+  }
+
+  const { tenantId } = await requireUserAndTenant();
+
+  const driverRef = adminDb.collection('drivers').doc(driverId);
+  const driverSnap = await driverRef.get();
+  if (!driverSnap.exists || driverSnap.data()?.tenant_id !== tenantId) {
+    return { message: 'Motorista não encontrado ou sem permissão.' };
+  }
+
+  try {
+    await driverRef.update({
+      license_number: parsed.data.license_number,
+      license_category: parsed.data.license_category,
+      license_expires_at: parsed.data.license_expires_at,
+      tracking_enabled: parsed.data.tracking_enabled,
+    });
+
+    const profileId = driverSnap.data()?.profile_id;
+    if (profileId) {
+      await adminDb.collection('profiles').doc(profileId).update({
+        name: parsed.data.name,
+        phone: parsed.data.phone || null,
+      });
+    }
+  } catch (error: any) {
+    return { message: `Erro ao atualizar motorista: ${error.message}` };
+  }
+
+  revalidatePath('/motoristas');
+  revalidatePath(`/motoristas/${driverId}`);
+  redirect(`/motoristas/${driverId}`);
 }
 
 // --- Buscar motorista por ID ---

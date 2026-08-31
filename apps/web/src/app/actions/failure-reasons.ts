@@ -86,6 +86,19 @@ export async function createFailureReason(
   redirect('/configuracoes/motivos-falha');
 }
 
+export async function deleteFailureReason(reasonId: string): Promise<{ message?: string }> {
+  const { tenantId } = await requireUserAndTenant();
+
+  const ref = adminDb.collection('failure_reasons').doc(reasonId);
+  const snap = await ref.get();
+  if (!snap.exists) return { message: 'Motivo não encontrado.' };
+  if (snap.data()?.tenant_id !== tenantId) return { message: 'Sem permissão pra excluir esse motivo.' };
+
+  await ref.delete();
+  revalidatePath('/configuracoes/motivos-falha');
+  return {};
+}
+
 export async function updateFailureReason(
   reasonId: string,
   prevState: FailureReasonFormState,

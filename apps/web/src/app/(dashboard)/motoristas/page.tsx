@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Eye, Pencil } from 'lucide-react';
 import { getDrivers, deleteDriver } from '@/app/actions/drivers';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
+import { IconLinkButton } from '@/components/ui/icon-link-button';
 
 export const metadata: Metadata = { title: 'Motoristas — CaçambaFlow' };
 
@@ -77,13 +79,8 @@ export default async function MotoristasPage() {
         ]}
         actions={(row) => (
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <Link
-              href={`/motoristas/${row.id}`}
-              className="btn btn--secondary btn--sm"
-              id={`btn-edit-driver-${row.id}`}
-            >
-              Detalhes
-            </Link>
+            <IconLinkButton href={`/motoristas/${row.id}`} icon={Eye} label="Ver detalhes" id={`btn-detail-driver-${row.id}`} />
+            <IconLinkButton href={`/motoristas/${row.id}/editar`} icon={Pencil} label="Editar" />
             <DeleteEntityButton
               id={row.id as string}
               confirmMessage={`Excluir o motorista ${(row.profiles as any)?.name ?? ''}? Isso remove ele da frota (o login/conta não é apagado). Essa ação não pode ser desfeita.`}

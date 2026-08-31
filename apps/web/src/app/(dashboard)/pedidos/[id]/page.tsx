@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getOrderById } from '@/app/actions/orders';
+import { getOrderById, deleteOrder } from '@/app/actions/orders';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DataTable } from '@/components/ui/data-table';
-import { DeleteOrderButton } from '@/components/orders/delete-order-button';
+import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
 
 export const metadata: Metadata = { title: 'Detalhes do Pedido — CaçambaFlow' };
 
@@ -31,7 +31,12 @@ export default async function PedidoDetailPage({ params }: { params: { id: strin
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
           <StatusBadge status={order.status} />
-          <DeleteOrderButton orderId={order.id} orderNumber={order.order_number} redirectTo="/pedidos" />
+          <DeleteEntityButton
+            id={order.id}
+            confirmMessage={`Excluir o pedido ${order.order_number}? Isso apaga também todos os atendimentos (jobs) dele. Essa ação não pode ser desfeita.`}
+            action={deleteOrder}
+            redirectTo="/pedidos"
+          />
         </div>
       </div>
 

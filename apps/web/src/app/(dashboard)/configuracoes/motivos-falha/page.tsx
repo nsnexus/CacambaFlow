@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Check } from 'lucide-react';
+import { Check, Pencil } from 'lucide-react';
 import { DataTable } from '@/components/ui/data-table';
-import { getFailureReasons } from '@/app/actions/failure-reasons';
+import { getFailureReasons, deleteFailureReason } from '@/app/actions/failure-reasons';
 import { SettingsNav } from '@/components/layout/settings-nav';
+import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
+import { IconLinkButton } from '@/components/ui/icon-link-button';
 
 export const metadata: Metadata = { title: 'Motivos de Falha — CaçambaFlow' };
 
@@ -76,13 +78,14 @@ export default async function MotivosFalhaPage() {
           },
         ]}
         actions={(row) => (
-          <Link
-            href={`/configuracoes/motivos-falha/${row.id}`}
-            className="btn btn--secondary btn--sm"
-            id={`btn-edit-reason-${row.id}`}
-          >
-            Editar
-          </Link>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <IconLinkButton href={`/configuracoes/motivos-falha/${row.id}`} icon={Pencil} label="Editar" id={`btn-edit-reason-${row.id}`} />
+            <DeleteEntityButton
+              id={row.id as string}
+              confirmMessage={`Excluir o motivo "${row.name}"? Essa ação não pode ser desfeita.`}
+              action={deleteFailureReason}
+            />
+          </div>
         )}
       />
     </div>

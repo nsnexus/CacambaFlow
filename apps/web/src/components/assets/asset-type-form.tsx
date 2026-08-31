@@ -1,23 +1,26 @@
 'use client';
 
 import { useFormState, useFormStatus } from 'react-dom';
-import { createAssetType, type AssetTypeFormState } from '@/app/actions/assets';
+import { createAssetType, updateAssetType, type AssetTypeFormState } from '@/app/actions/assets';
 import Link from 'next/link';
 
-function SubmitButton() {
+type AssetType = { id: string; name: string; volume_m3: number };
+
+function SubmitButton({ isEdit }: { isEdit: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button id="btn-submit-tipo-cacamba" type="submit" className="btn btn--primary btn--lg" disabled={pending}>
-      {pending ? 'Salvando...' : 'Salvar Tipo'}
+      {pending ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Salvar Tipo'}
     </button>
   );
 }
 
-export function AssetTypeForm() {
-  const [state, action] = useFormState<AssetTypeFormState, FormData>(createAssetType, {});
+export function AssetTypeForm({ assetType }: { assetType?: AssetType }) {
+  const action = assetType ? updateAssetType.bind(null, assetType.id) : createAssetType;
+  const [state, formAction] = useFormState<AssetTypeFormState, FormData>(action, {});
 
   return (
-    <form action={action} noValidate>
+    <form action={formAction} noValidate>
       {state.message && (
         <div role="alert" style={{
           background: 'color-mix(in srgb, var(--color-danger) 10%, transparent)',
@@ -35,18 +38,18 @@ export function AssetTypeForm() {
       <div className="form-grid" style={{ marginBottom: 'var(--space-6)' }}>
         <div className="form-group">
           <label className="label" htmlFor="asset-type-name">Nome *</label>
-          <input id="asset-type-name" name="name" type="text" className="input" required placeholder="Caçamba 5m³" />
+          <input id="asset-type-name" name="name" type="text" className="input" required defaultValue={assetType?.name} placeholder="Caçamba 5m³" />
           {state.errors?.name && <p className="form-error">{state.errors.name[0]}</p>}
         </div>
         <div className="form-group">
           <label className="label" htmlFor="asset-type-volume">Volume (m³) *</label>
-          <input id="asset-type-volume" name="volume_m3" type="number" step="0.1" min="0.1" className="input" required placeholder="5" />
+          <input id="asset-type-volume" name="volume_m3" type="number" step="0.1" min="0.1" className="input" required defaultValue={assetType?.volume_m3} placeholder="5" />
           {state.errors?.volume_m3 && <p className="form-error">{state.errors.volume_m3[0]}</p>}
         </div>
       </div>
 
       <div className="flex gap-4">
-        <SubmitButton />
+        <SubmitButton isEdit={!!assetType} />
         <Link href="/configuracoes/tipos-cacamba" className="btn btn--secondary btn--lg">Cancelar</Link>
       </div>
 

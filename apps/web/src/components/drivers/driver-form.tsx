@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
-import { createDriver, type DriverFormState } from '@/app/actions/drivers';
+import { createDriver, updateDriver, type DriverFormState } from '@/app/actions/drivers';
 import Link from 'next/link';
 
-function SubmitButton() {
+function SubmitButton({ isEdit }: { isEdit: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -15,7 +15,7 @@ function SubmitButton() {
       disabled={pending}
       aria-disabled={pending}
     >
-      {pending ? 'Salvando...' : 'Salvar Motorista'}
+      {pending ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Salvar Motorista'}
     </button>
   );
 }
@@ -61,8 +61,19 @@ function ResetLinkSuccess({ resetLink }: { resetLink: string }) {
   );
 }
 
-export function DriverForm() {
-  const [state, action] = useFormState<DriverFormState, FormData>(createDriver, {});
+type Driver = {
+  id: string;
+  profiles?: { name?: string; email?: string; phone?: string };
+  license_number?: string;
+  license_category?: string;
+  license_expires_at?: string;
+  tracking_enabled?: boolean;
+};
+
+export function DriverForm({ driver }: { driver?: Driver }) {
+  const isEdit = !!driver;
+  const action = isEdit ? updateDriver.bind(null, driver.id) : createDriver;
+  const [state, formAction] = useFormState<DriverFormState, FormData>(action, {});
 
   if (state.success && state.resetLink) {
     return <ResetLinkSuccess resetLink={state.resetLink} />;
@@ -80,7 +91,7 @@ export function DriverForm() {
   }
 
   return (
-    <form action={action} noValidate>
+    <form action={formAction} noValidate>
       {state.message && (
         <div
           id="form-error-message"
@@ -104,17 +115,22 @@ export function DriverForm() {
         <div className="form-grid">
           <div className="form-group">
             <label className="label" htmlFor="driver-name">Nome completo *</label>
-            <input id="driver-name" name="name" type="text" className="input" required placeholder="João da Silva" />
+            <input id="driver-name" name="name" type="text" className="input" required defaultValue={driver?.profiles?.name} placeholder="João da Silva" />
             {state.errors?.name && <p className="form-error">{state.errors.name[0]}</p>}
           </div>
           <div className="form-group">
-            <label className="label" htmlFor="driver-email">E-mail (acesso ao app) *</label>
-            <input id="driver-email" name="email" type="email" className="input" required placeholder="joao@empresa.com" />
+            <label className="label" htmlFor="driver-email">E-mail (acesso ao app) {!isEdit && '*'}</label>
+            {isEdit ? (
+              <input id="driver-email" type="email" className="input" value={driver?.profiles?.email ?? ''} disabled readOnly />
+            ) : (
+              <input id="driver-email" name="email" type="email" className="input" required placeholder="joao@empresa.com" />
+            )}
+            {isEdit && <p className="text-muted text-xs" style={{ marginTop: '4px' }}>E-mail de login não pode ser alterado aqui.</p>}
             {state.errors?.email && <p className="form-error">{state.errors.email[0]}</p>}
           </div>
           <div className="form-group">
             <label className="label" htmlFor="driver-phone">Telefone</label>
-            <input id="driver-phone" name="phone" type="tel" className="input" placeholder="(11) 99999-9999" />
+            <input id="driver-phone" name="phone" type="tel" className="input" defaultValue={driver?.profiles?.phone} placeholder="(11) 99999-9999" />
           </div>
         </div>
       </div>
@@ -124,12 +140,12 @@ export function DriverForm() {
         <div className="form-grid">
           <div className="form-group">
             <label className="label" htmlFor="driver-license-number">Número da CNH *</label>
-            <input id="driver-license-number" name="license_number" type="text" className="input" required placeholder="00000000000" />
+            <input id="driver-license-number" name="license_number" type="text" className="input" required defaultValue={driver?.license_number} placeholder="00000000000" />
             {state.errors?.license_number && <p className="form-error">{state.errors.license_number[0]}</p>}
           </div>
           <div className="form-group">
             <label className="label" htmlFor="driver-license-category">Categoria *</label>
-            <select id="driver-license-category" name="license_category" className="input" required>
+            <select id="driver-license-category" name="license_category" className="input" required defaultValue={driver?.license_category ?? ''}>
               <option value="">Selecione...</option>
               <option value="B">B</option>
               <option value="C">C</option>
@@ -142,7 +158,7 @@ export function DriverForm() {
           </div>
           <div className="form-group">
             <label className="label" htmlFor="driver-license-expires">Validade da CNH *</label>
-            <input id="driver-license-expires" name="license_expires_at" type="date" className="input" required />
+            <input id="driver-license-expires" name="license_expires_at" type="date" className="input" required defaultValue={driver?.license_expires_at} />
             {state.errors?.license_expires_at && <p className="form-error">{state.errors.license_expires_at[0]}</p>}
           </div>
         </div>
@@ -152,7 +168,7 @@ export function DriverForm() {
         <h2 className="form-section__title">Rastreamento</h2>
         <div className="form-group">
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
-            <input id="driver-tracking" name="tracking_enabled" type="checkbox" value="true" defaultChecked />
+            <input id="driver-tracking" name="tracking_enabled" type="checkbox" value="true" defaultChecked={driver?.tracking_enabled ?? true} />
             <span style={{ fontSize: '0.875rem' }}>
               Permitir rastreamento durante a jornada
               <span className="text-muted text-xs" style={{ display: 'block' }}>
@@ -164,7 +180,7 @@ export function DriverForm() {
       </div>
 
       <div className="flex gap-4" style={{ marginTop: 'var(--space-6)' }}>
-        <SubmitButton />
+        <SubmitButton isEdit={isEdit} />
         <Link href="/motoristas" className="btn btn--secondary btn--lg">Cancelar</Link>
       </div>
 

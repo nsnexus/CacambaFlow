@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getOrders } from '@/app/actions/orders';
+import { Eye } from 'lucide-react';
+import { getOrders, deleteOrder } from '@/app/actions/orders';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { DeleteOrderButton } from '@/components/orders/delete-order-button';
+import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
+import { IconLinkButton } from '@/components/ui/icon-link-button';
 
 export const metadata: Metadata = { title: 'Pedidos — CaçambaFlow' };
 
@@ -79,14 +81,12 @@ export default async function PedidosPage() {
         ]}
         actions={(row) => (
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <Link
-              href={`/pedidos/${row.id}`}
-              className="btn btn--secondary btn--sm"
-              id={`btn-detail-order-${row.id}`}
-            >
-              Ver
-            </Link>
-            <DeleteOrderButton orderId={row.id as string} orderNumber={row.order_number as string} />
+            <IconLinkButton href={`/pedidos/${row.id}`} icon={Eye} label="Ver pedido" id={`btn-detail-order-${row.id}`} />
+            <DeleteEntityButton
+              id={row.id as string}
+              confirmMessage={`Excluir o pedido ${row.order_number}? Isso apaga também todos os atendimentos (jobs) dele. Essa ação não pode ser desfeita.`}
+              action={deleteOrder}
+            />
           </div>
         )}
       />

@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Pencil } from 'lucide-react';
 import { getCustomerWithAddresses } from '@/app/actions/customers';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { IconLinkButton } from '@/components/ui/icon-link-button';
 
 export const metadata: Metadata = { title: 'Cliente — CaçambaFlow' };
 
@@ -30,7 +32,10 @@ export default async function ClienteDetailPage({ params }: { params: { id: stri
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{customer?.name}</h1>
             <p className="text-muted text-sm">{customer?.person_type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'} · {customer?.document ?? 'Sem documento'}</p>
           </div>
-          <StatusBadge status={customer?.status ?? 'ATIVO'} />
+          <div className="flex items-center gap-2">
+            <StatusBadge status={customer?.status ?? 'ATIVO'} />
+            <IconLinkButton href={`/clientes/${params.id}/editar`} icon={Pencil} label="Editar" />
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--space-4)' }}>

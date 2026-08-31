@@ -91,14 +91,27 @@ export type AssetTypeFormState = {
   message?: string;
 };
 
+function parseAssetTypeForm(formData: FormData) {
+  return assetTypeSchema.safeParse({
+    name: formData.get('name') as string,
+    volume_m3: formData.get('volume_m3') as string,
+  });
+}
+
+export async function getAssetTypeById(assetTypeId: string) {
+  const { tenantId } = await requireUserAndTenant();
+  const doc = await adminDb.collection('asset_types').doc(assetTypeId).get();
+  if (!doc.exists) throw new Error('Tipo não encontrado');
+  const data = doc.data() as any;
+  if (data.tenant_id !== tenantId) throw new Error('Sem permissão');
+  return { id: doc.id, ...data };
+}
+
 export async function createAssetType(
   prevState: AssetTypeFormState,
   formData: FormData
 ): Promise<AssetTypeFormState> {
-  const parsed = assetTypeSchema.safeParse({
-    name: formData.get('name') as string,
-    volume_m3: formData.get('volume_m3') as string,
-  });
+  const parsed = parseAssetTypeForm(formData);
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors };
   }
@@ -125,17 +138,63 @@ export async function createAssetType(
   redirect('/configuracoes/tipos-cacamba');
 }
 
+export async function updateAssetType(
+  assetTypeId: string,
+  prevState: AssetTypeFormState,
+  formData: FormData
+): Promise<AssetTypeFormState> {
+  const parsed = parseAssetTypeForm(formData);
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const { tenantId } = await requireUserAndTenant();
+
+  const ref = adminDb.collection('asset_types').doc(assetTypeId);
+  const snap = await ref.get();
+  if (!snap.exists || snap.data()?.tenant_id !== tenantId) {
+    return { message: 'Tipo não encontrado ou sem permissão.' };
+  }
+
+  try {
+    await ref.update({ ...parsed.data });
+  } catch (error: any) {
+    return { message: `Erro ao atualizar tipo de caçamba: ${error.message}` };
+  }
+
+  revalidatePath('/configuracoes/tipos-cacamba');
+  redirect('/configuracoes/tipos-cacamba');
+}
+
+// Apaga o tipo de caçamba do cadastro. Não bloqueia mesmo se alguma caçamba
+// já usa esse tipo (fica com o vínculo órfão, só pra histórico) — é
+// responsabilidade de quem cadastra não apagar tipo em uso sem necessidade.
+export async function deleteAssetType(assetTypeId: string): Promise<{ message?: string }> {
+  const { tenantId } = await requireUserAndTenant();
+
+  const ref = adminDb.collection('asset_types').doc(assetTypeId);
+  const snap = await ref.get();
+  if (!snap.exists) return { message: 'Tipo não encontrado.' };
+  if (snap.data()?.tenant_id !== tenantId) return { message: 'Sem permissão pra excluir esse tipo.' };
+
+  await ref.delete();
+  revalidatePath('/configuracoes/tipos-cacamba');
+  return {};
+}
+
+function parseAssetForm(formData: FormData) {
+  return assetSchema.safeParse({
+    identifier: formData.get('identifier') as string,
+    asset_type_id: formData.get('asset_type_id') as string,
+    color: formData.get('color') as string,
+  });
+}
+
 export async function createAsset(
   prevState: AssetFormState,
   formData: FormData
 ): Promise<AssetFormState> {
-  const rawData = {
-    identifier: formData.get('identifier') as string,
-    asset_type_id: formData.get('asset_type_id') as string,
-    color: formData.get('color') as string,
-  };
-
-  const parsed = assetSchema.safeParse(rawData);
+  const parsed = parseAssetForm(formData);
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors };
   }
@@ -174,6 +233,47 @@ export async function createAsset(
 
   revalidatePath('/cacambas');
   redirect('/cacambas');
+}
+
+export async function updateAsset(
+  assetId: string,
+  prevState: AssetFormState,
+  formData: FormData
+): Promise<AssetFormState> {
+  const parsed = parseAssetForm(formData);
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const { tenantId } = await requireUserAndTenant();
+
+  const ref = adminDb.collection('assets').doc(assetId);
+  const snap = await ref.get();
+  if (!snap.exists || snap.data()?.tenant_id !== tenantId) {
+    return { message: 'Caçamba não encontrada ou sem permissão.' };
+  }
+
+  const existingSnap = await adminDb.collection('assets')
+    .where('tenant_id', '==', tenantId)
+    .where('identifier', '==', parsed.data.identifier)
+    .get();
+  if (existingSnap.docs.some((d) => d.id !== assetId)) {
+    return { message: 'Já existe outra caçamba com este número.' };
+  }
+
+  try {
+    await ref.update({
+      identifier: parsed.data.identifier,
+      asset_type_id: parsed.data.asset_type_id,
+      color: parsed.data.color || null,
+    });
+  } catch (error: any) {
+    return { message: `Erro ao atualizar caçamba: ${error.message}` };
+  }
+
+  revalidatePath('/cacambas');
+  revalidatePath(`/cacambas/${assetId}`);
+  redirect(`/cacambas/${assetId}`);
 }
 
 export async function updateAssetStatus(assetId: string, status: 'DISPONIVEL' | 'LOCADA' | 'MANUTENCAO' | 'PERDIDA') {
