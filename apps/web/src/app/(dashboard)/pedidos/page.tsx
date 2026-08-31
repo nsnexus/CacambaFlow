@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getOrders } from '@/app/actions/orders';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { DeleteOrderButton } from '@/components/orders/delete-order-button';
 
 export const metadata: Metadata = { title: 'Pedidos — CaçambaFlow' };
 
@@ -77,13 +78,16 @@ export default async function PedidosPage() {
           },
         ]}
         actions={(row) => (
-          <Link
-            href={`/pedidos/${row.id}`}
-            className="btn btn--secondary btn--sm"
-            id={`btn-detail-order-${row.id}`}
-          >
-            Ver
-          </Link>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <Link
+              href={`/pedidos/${row.id}`}
+              className="btn btn--secondary btn--sm"
+              id={`btn-detail-order-${row.id}`}
+            >
+              Ver
+            </Link>
+            <DeleteOrderButton orderId={row.id as string} orderNumber={row.order_number as string} />
+          </div>
         )}
       />
     </div>

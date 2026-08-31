@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getOrderById } from '@/app/actions/orders';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DataTable } from '@/components/ui/data-table';
+import { DeleteOrderButton } from '@/components/orders/delete-order-button';
 
 export const metadata: Metadata = { title: 'Detalhes do Pedido — CaçambaFlow' };
 
@@ -28,7 +29,10 @@ export default async function PedidoDetailPage({ params }: { params: { id: strin
             Criado em {order.created_at?.toDate ? order.created_at.toDate().toLocaleDateString('pt-BR') : '—'}
           </p>
         </div>
-        <StatusBadge status={order.status} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <StatusBadge status={order.status} />
+          <DeleteOrderButton orderId={order.id} orderNumber={order.order_number} redirectTo="/pedidos" />
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>

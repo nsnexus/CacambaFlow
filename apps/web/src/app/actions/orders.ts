@@ -252,3 +252,25 @@ export async function createOrder(
   revalidatePath('/atendimentos');
   redirect(`/pedidos/${orderRef.id}`);
 }
+
+// Apaga o pedido e todos os atendimentos (jobs) dele — irreversível. Não
+// mexe em `evidences` (ficam órfãs, mas não atrapalham nada; servem de
+// registro caso precise auditar depois).
+export async function deleteOrder(orderId: string): Promise<{ message?: string }> {
+  const { tenantId } = await requireUserAndTenant();
+
+  const orderRef = adminDb.collection('orders').doc(orderId);
+  const orderSnap = await orderRef.get();
+  if (!orderSnap.exists) return { message: 'Pedido não encontrado.' };
+  if (orderSnap.data()?.tenant_id !== tenantId) return { message: 'Sem permissão pra excluir esse pedido.' };
+
+  const jobsSnap = await orderRef.collection('jobs').get();
+  const batch = adminDb.batch();
+  jobsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+  batch.delete(orderRef);
+  await batch.commit();
+
+  revalidatePath('/pedidos');
+  revalidatePath('/atendimentos');
+  return {};
+}

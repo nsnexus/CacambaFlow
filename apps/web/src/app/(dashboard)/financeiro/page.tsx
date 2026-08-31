@@ -18,6 +18,18 @@ export default async function FinanceiroPage() {
   const totalFaturar = unbilled.reduce((acc, curr: any) => acc + Number(curr.price), 0);
   const totalRecebido = invoices.filter((i: any) => i.status === 'PAGO').reduce((acc, curr: any) => acc + Number(curr.amount), 0);
 
+  // "Faturado" = toda fatura emitida, independente de já ter sido paga ou
+  // não (diferente de "Recebido", que é só o que já entrou de fato).
+  const totalFaturado = invoices.reduce((acc, curr: any) => acc + Number(curr.amount), 0);
+
+  const now = new Date();
+  const faturadoMes = invoices
+    .filter((i: any) => {
+      const createdAt = i.created_at?.toDate ? i.created_at.toDate() : i.created_at ? new Date(i.created_at) : null;
+      return createdAt && createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear();
+    })
+    .reduce((acc, curr: any) => acc + Number(curr.amount), 0);
+
   return (
     <div>
       <div style={{ marginBottom: 'var(--space-6)' }}>
@@ -27,6 +39,16 @@ export default async function FinanceiroPage() {
 
       {/* Cards de Resumo */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
+        <div className="card" style={{ borderLeft: '4px solid var(--color-primary)' }}>
+          <p className="text-sm text-muted" style={{ fontWeight: 600 }}>Total Faturado</p>
+          <p style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 'var(--space-2)' }}>R$ {totalFaturado.toFixed(2)}</p>
+          <p className="text-xs text-muted">{invoices.length} fatura(s) emitida(s) no total</p>
+        </div>
+        <div className="card" style={{ borderLeft: '4px solid var(--color-primary)' }}>
+          <p className="text-sm text-muted" style={{ fontWeight: 600 }}>Faturado Este Mês</p>
+          <p style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 'var(--space-2)' }}>R$ {faturadoMes.toFixed(2)}</p>
+          <p className="text-xs text-muted">{now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</p>
+        </div>
         <div className="card" style={{ borderLeft: '4px solid var(--color-warning)' }}>
           <p className="text-sm text-muted" style={{ fontWeight: 600 }}>Pedidos a Faturar</p>
           <p style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 'var(--space-2)' }}>R$ {totalFaturar.toFixed(2)}</p>
