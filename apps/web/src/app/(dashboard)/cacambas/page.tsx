@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { Map } from 'lucide-react';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { getAssets } from '@/app/actions/assets';
+import { getAssets, deleteAsset } from '@/app/actions/assets';
+import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
 
 export const metadata: Metadata = { title: 'Caçambas — CaçambaFlow' };
 
@@ -94,13 +95,20 @@ export default async function CacambasPage() {
           },
         ]}
         actions={(row) => (
-          <Link
-            href={`/cacambas/${row.id}`}
-            className="btn btn--secondary btn--sm"
-            id={`btn-detail-asset-${row.id}`}
-          >
-            Detalhes
-          </Link>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <Link
+              href={`/cacambas/${row.id}`}
+              className="btn btn--secondary btn--sm"
+              id={`btn-detail-asset-${row.id}`}
+            >
+              Detalhes
+            </Link>
+            <DeleteEntityButton
+              id={row.id as string}
+              confirmMessage={`Excluir a caçamba ${row.identifier}? Essa ação não pode ser desfeita.`}
+              action={deleteAsset}
+            />
+          </div>
         )}
       />
     </div>

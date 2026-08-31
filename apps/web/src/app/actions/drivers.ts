@@ -172,10 +172,28 @@ export async function getDriverById(driverId: string) {
 // --- Atualizar status do motorista ---
 export async function updateDriverStatus(driverId: string, status: 'ATIVO' | 'INATIVO') {
   await requireUserAndTenant();
-  
+
   await adminDb.collection('drivers').doc(driverId).update({
     status
   });
-  
+
   revalidatePath('/motoristas');
+}
+
+// Remove o motorista da frota — apaga só o documento em `drivers`, não mexe
+// no login dele (profile/conta do Firebase Auth continuam existindo, então
+// dá pra recriar o vínculo depois se precisar). Atendimentos antigos ficam
+// com assigned_driver_id órfão — as telas já tratam isso como "Motorista
+// removido".
+export async function deleteDriver(driverId: string): Promise<{ message?: string }> {
+  const { tenantId } = await requireUserAndTenant();
+
+  const ref = adminDb.collection('drivers').doc(driverId);
+  const snap = await ref.get();
+  if (!snap.exists) return { message: 'Motorista não encontrado.' };
+  if (snap.data()?.tenant_id !== tenantId) return { message: 'Sem permissão pra excluir esse motorista.' };
+
+  await ref.delete();
+  revalidatePath('/motoristas');
+  return {};
 }

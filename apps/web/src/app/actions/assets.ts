@@ -185,6 +185,22 @@ export async function updateAssetStatus(assetId: string, status: 'DISPONIVEL' | 
   revalidatePath(`/cacambas/${assetId}`);
 }
 
+// Apaga a caçamba do cadastro — irreversível. Não mexe em pedidos/jobs
+// antigos que já referenciam essa caçamba (ficam com o vínculo órfão, só
+// pra histórico).
+export async function deleteAsset(assetId: string): Promise<{ message?: string }> {
+  const { tenantId } = await requireUserAndTenant();
+
+  const ref = adminDb.collection('assets').doc(assetId);
+  const snap = await ref.get();
+  if (!snap.exists) return { message: 'Caçamba não encontrada.' };
+  if (snap.data()?.tenant_id !== tenantId) return { message: 'Sem permissão pra excluir essa caçamba.' };
+
+  await ref.delete();
+  revalidatePath('/cacambas');
+  return {};
+}
+
 // --- Entrega / coleta (para saber quais caçambas estão em campo e onde) ---
 
 export async function getCustomersWithAddresses() {

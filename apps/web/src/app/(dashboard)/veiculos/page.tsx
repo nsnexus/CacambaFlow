@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getVehicles } from '@/app/actions/vehicles';
+import { getVehicles, deleteVehicle } from '@/app/actions/vehicles';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
 
 export const metadata: Metadata = { title: 'Veículos — CaçambaFlow' };
 
@@ -48,13 +49,20 @@ export default async function VeiculosPage() {
           },
         ]}
         actions={(row) => (
-          <Link
-            href={`/veiculos/${row.id}`}
-            className="btn btn--secondary btn--sm"
-            id={`btn-edit-vehicle-${row.id}`}
-          >
-            Detalhes
-          </Link>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <Link
+              href={`/veiculos/${row.id}`}
+              className="btn btn--secondary btn--sm"
+              id={`btn-edit-vehicle-${row.id}`}
+            >
+              Detalhes
+            </Link>
+            <DeleteEntityButton
+              id={row.id as string}
+              confirmMessage={`Excluir o veículo ${row.plate}? Essa ação não pode ser desfeita.`}
+              action={deleteVehicle}
+            />
+          </div>
         )}
       />
     </div>

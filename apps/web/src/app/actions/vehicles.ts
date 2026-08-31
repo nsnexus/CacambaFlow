@@ -108,10 +108,25 @@ export async function getVehicleById(vehicleId: string) {
 
 export async function updateVehicleStatus(vehicleId: string, status: 'ATIVO' | 'MANUTENCAO' | 'INATIVO') {
   await requireUserAndTenant();
-  
+
   await adminDb.collection('vehicles').doc(vehicleId).update({
     status
   });
-  
+
   revalidatePath('/veiculos');
+}
+
+// Apaga o veículo do cadastro — irreversível. Atendimentos antigos que já
+// referenciam esse veículo ficam com o vínculo órfão, só pra histórico.
+export async function deleteVehicle(vehicleId: string): Promise<{ message?: string }> {
+  const { tenantId } = await requireUserAndTenant();
+
+  const ref = adminDb.collection('vehicles').doc(vehicleId);
+  const snap = await ref.get();
+  if (!snap.exists) return { message: 'Veículo não encontrado.' };
+  if (snap.data()?.tenant_id !== tenantId) return { message: 'Sem permissão pra excluir esse veículo.' };
+
+  await ref.delete();
+  revalidatePath('/veiculos');
+  return {};
 }

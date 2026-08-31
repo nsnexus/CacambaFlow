@@ -164,3 +164,24 @@ export async function createAddress(
   revalidatePath(`/clientes/${parsed.data.customer_id}`);
   redirect(`/clientes/${parsed.data.customer_id}`);
 }
+
+// Apaga o cliente e os endereços (obras) dele — irreversível. Pedidos/caçambas
+// antigos que já referenciam esse cliente ficam com o vínculo órfão, só pra
+// histórico.
+export async function deleteCustomer(customerId: string): Promise<{ message?: string }> {
+  const { tenantId } = await requireUserAndTenant();
+
+  const ref = adminDb.collection('customers').doc(customerId);
+  const snap = await ref.get();
+  if (!snap.exists) return { message: 'Cliente não encontrado.' };
+  if (snap.data()?.tenant_id !== tenantId) return { message: 'Sem permissão pra excluir esse cliente.' };
+
+  const addressesSnap = await ref.collection('addresses').get();
+  const batch = adminDb.batch();
+  addressesSnap.docs.forEach((doc) => batch.delete(doc.ref));
+  batch.delete(ref);
+  await batch.commit();
+
+  revalidatePath('/clientes');
+  return {};
+}
