@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { createDriver, type DriverFormState } from '@/app/actions/drivers';
 import Link from 'next/link';
@@ -19,8 +20,64 @@ function SubmitButton() {
   );
 }
 
+function ResetLinkSuccess({ resetLink }: { resetLink: string }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <div id="driver-created-success">
+      <div
+        role="status"
+        style={{
+          background: 'color-mix(in srgb, var(--color-success) 10%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--color-success) 30%, transparent)',
+          borderRadius: 'var(--radius-md)',
+          padding: 'var(--space-4)',
+          marginBottom: 'var(--space-4)',
+        }}
+      >
+        <p style={{ fontWeight: 600, marginBottom: 'var(--space-2)' }}>✓ Motorista criado com sucesso!</p>
+        <p className="text-sm" style={{ marginBottom: 'var(--space-3)' }}>
+          Tentamos mandar um e-mail com o link de acesso, mas o mais garantido é você mesmo mandar esse link pro
+          motorista (WhatsApp, por exemplo) — clicando nele, ele define a própria senha:
+        </p>
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <input readOnly value={resetLink} className="input" style={{ fontSize: '0.75rem', fontFamily: 'monospace' }} onClick={(e) => e.currentTarget.select()} />
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            style={{ whiteSpace: 'nowrap' }}
+            onClick={() => {
+              navigator.clipboard.writeText(resetLink);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+          >
+            {copied ? 'Copiado!' : 'Copiar link'}
+          </button>
+        </div>
+      </div>
+      <Link href="/motoristas" className="btn btn--primary btn--lg">Voltar para Motoristas</Link>
+    </div>
+  );
+}
+
 export function DriverForm() {
   const [state, action] = useFormState<DriverFormState, FormData>(createDriver, {});
+
+  if (state.success && state.resetLink) {
+    return <ResetLinkSuccess resetLink={state.resetLink} />;
+  }
+
+  if (state.success) {
+    return (
+      <div>
+        <p style={{ marginBottom: 'var(--space-4)' }}>
+          ✓ Motorista criado, mas não consegui gerar o link de acesso agora (falha temporária). Exclua e recadastre esse motorista pra tentar de novo, ou peça suporte técnico.
+        </p>
+        <Link href="/motoristas" className="btn btn--primary btn--lg">Voltar para Motoristas</Link>
+      </div>
+    );
+  }
 
   return (
     <form action={action} noValidate>

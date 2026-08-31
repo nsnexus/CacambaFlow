@@ -21,6 +21,7 @@ export type DriverFormState = {
   errors?: Partial<Record<keyof z.infer<typeof driverSchema>, string[]>>;
   message?: string;
   success?: boolean;
+  resetLink?: string;
 };
 
 // --- Listar motoristas ---
@@ -83,6 +84,9 @@ export async function createDriver(
   }
 
   // 1. Criar usuário no Firebase Auth
+  // Senha aleatória só pra satisfazer o campo obrigatório do Auth — ninguém
+  // usa ela de fato. O motorista define a própria senha pelo link de reset
+  // gerado abaixo (mais seguro que o admin repassar uma senha temporária).
   const tempPassword = Math.random().toString(36).slice(-8) + 'A1!';
   let authUser;
   try {
@@ -132,8 +136,28 @@ export async function createDriver(
     return { message: `Erro ao criar motorista: ${error.message}` };
   }
 
+  // 4. Link pra motorista definir a própria senha (Firebase Auth) — mostrado
+  // na tela pro admin copiar/mandar por WhatsApp, e enviado por e-mail em
+  // melhor esforço (o remetente de teste do Resend só entrega com certeza pro
+  // e-mail dono da conta, então o link na tela é o caminho garantido).
+  let resetLink = '';
+  try {
+    resetLink = await adminAuth.generatePasswordResetLink(parsed.data.email);
+  } catch (error: any) {
+    console.warn('[createDriver] não foi possível gerar o link de senha:', error.message);
+  }
+
+  if (resetLink) {
+    try {
+      const { sendDriverAccessEmail } = await import('@/lib/email');
+      await sendDriverAccessEmail(parsed.data.email, parsed.data.name, resetLink);
+    } catch (error: any) {
+      console.warn('[createDriver] e-mail de acesso não enviado:', error.message);
+    }
+  }
+
   revalidatePath('/motoristas');
-  redirect('/motoristas');
+  return { success: true, resetLink };
 }
 
 // --- Buscar motorista por ID ---

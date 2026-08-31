@@ -47,3 +47,29 @@ export async function sendLeadNotification(lead: LeadEmailData) {
     `,
   });
 }
+
+// E-mail de primeiro acesso pro motorista, com o link pra ele definir a
+// própria senha. Melhor esforço — o remetente de teste do Resend
+// (onboarding@resend.dev) só garante entrega pro e-mail dono da conta, então
+// quem chama isso também deve mostrar o link na tela como caminho garantido.
+export async function sendDriverAccessEmail(to: string, driverName: string, resetLink: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn('[email] RESEND_API_KEY não configurada — e-mail de acesso não enviado.');
+    return;
+  }
+
+  const resend = new Resend(apiKey);
+
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: 'Seu acesso ao CaçambaFlow',
+    html: `
+      <p>Olá, ${driverName}!</p>
+      <p>Sua conta no app CaçambaFlow foi criada. Clique no link abaixo pra definir sua senha e começar a usar:</p>
+      <p><a href="${resetLink}">Definir minha senha</a></p>
+      <p>Se você não esperava esse e-mail, pode ignorá-lo.</p>
+    `,
+  });
+}

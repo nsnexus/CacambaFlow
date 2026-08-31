@@ -13,7 +13,7 @@ export default function NovoMotoristaPage() {
         </Link>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Novo Motorista</h1>
         <p className="text-muted text-sm">
-          Um e-mail com a senha temporária será enviado ao motorista para primeiro acesso no app.
+          Depois de salvar, você recebe um link pro motorista definir a própria senha — mande por WhatsApp ou o e-mail dele.
         </p>
       </div>
 
