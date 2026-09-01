@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Eye, Pencil } from 'lucide-react';
+import { Eye, Pencil, Smartphone } from 'lucide-react';
 import { getDrivers, deleteDriver } from '@/app/actions/drivers';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
 import { IconLinkButton } from '@/components/ui/icon-link-button';
+import { ANDROID_APK_URL } from '@/lib/mobile-app';
 
 export const metadata: Metadata = { title: 'Motoristas — CaçambaFlow' };
 
@@ -29,9 +30,20 @@ export default async function MotoristasPage() {
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Motoristas</h1>
           <p className="text-muted text-sm">{drivers.length} motorista(s) cadastrado(s)</p>
         </div>
-        <Link id="btn-novo-motorista" href="/motoristas/novo" className="btn btn--primary">
-          + Novo Motorista
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            id="btn-baixar-app-motorista"
+            href={ANDROID_APK_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn--secondary"
+          >
+            <Smartphone size={16} /> Baixar App (Android)
+          </Link>
+          <Link id="btn-novo-motorista" href="/motoristas/novo" className="btn btn--primary">
+            + Novo Motorista
+          </Link>
+        </div>
       </div>
 
       <DataTable
