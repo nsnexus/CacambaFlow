@@ -396,6 +396,16 @@ export function OrderForm({
               <option value="DINHEIRO">Dinheiro</option>
             </select>
           </div>
+          <div className="form-group">
+            <label className="label">Situação do Pagamento</label>
+            <select name="payment_status" className="input" defaultValue="PENDENTE">
+              <option value="PENDENTE">Pendente — ainda não pagou</option>
+              <option value="PAGO">Pago (na entrega ou já adiantado)</option>
+            </select>
+            <p className="text-muted text-xs" style={{ marginTop: '4px' }}>
+              Dá pra mudar depois — se o cliente só paga na hora do recolhimento, deixa Pendente aqui.
+            </p>
+          </div>
           <div className="form-group" style={{ gridColumn: '1 / -1' }}>
             <label className="label">Observações Internas</label>
             <textarea name="notes" className="input" rows={3} placeholder="Notas visíveis apenas no painel..." />

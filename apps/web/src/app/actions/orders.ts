@@ -48,6 +48,10 @@ const orderSchema = z.object({
   quick_address_longitude: optionalCoords,
   price: z.coerce.number().optional(),
   payment_method: z.string().optional(),
+  // Cliente às vezes paga na entrega, às vezes só no recolhimento — por isso
+  // isso é um status que se atualiza depois (ver updateOrderPaymentStatus),
+  // não só uma opção fixa escolhida na criação do pedido.
+  payment_status: z.enum(['PAGO', 'PENDENTE']).default('PENDENTE'),
   notes: z.string().optional(),
   jobs: z.array(jobSchema).min(1, 'O pedido deve ter pelo menos um atendimento'),
 }).refine((data) => {
@@ -208,6 +212,7 @@ export async function createOrder(
     quick_address_longitude: formData.get('quick_address_longitude'),
     price: formData.get('price'),
     payment_method: formData.get('payment_method') as string,
+    payment_status: formData.get('payment_status') as string,
     notes: formData.get('notes') as string,
     jobs: jobsData,
   };
@@ -287,6 +292,7 @@ export async function createOrder(
       scheduled_date: parsed.data.jobs[0]?.scheduled_date || null,
       price: parsed.data.price || null,
       payment_method: parsed.data.payment_method || null,
+      payment_status: parsed.data.payment_status,
       notes: parsed.data.notes || null,
       created_by: sessionData.profileId,
       status: 'ATIVO',
@@ -341,6 +347,22 @@ export async function createOrder(
   revalidatePath('/pedidos');
   revalidatePath('/atendimentos');
   redirect(`/pedidos/${orderRef.id}`);
+}
+
+// Cliente às vezes paga na entrega, às vezes só no recolhimento — por isso
+// isso precisa poder mudar depois de criado, não só ficar fixo desde a
+// criação do pedido.
+export async function updateOrderPaymentStatus(orderId: string, status: 'PAGO' | 'PENDENTE') {
+  const { tenantId } = await requireUserAndTenant();
+
+  const orderRef = adminDb.collection('orders').doc(orderId);
+  const orderSnap = await orderRef.get();
+  if (!orderSnap.exists || orderSnap.data()?.tenant_id !== tenantId) return;
+
+  await orderRef.update({ payment_status: status });
+
+  revalidatePath('/pedidos');
+  revalidatePath(`/pedidos/${orderId}`);
 }
 
 // Apaga o pedido e todos os atendimentos (jobs) dele — irreversível. Não

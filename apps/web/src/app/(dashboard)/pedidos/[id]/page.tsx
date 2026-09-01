@@ -6,6 +6,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { DataTable } from '@/components/ui/data-table';
 import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
 import { CompleteJobButton } from '@/components/orders/complete-job-button';
+import { PaymentStatusToggle } from '@/components/orders/payment-status-toggle';
 
 const JOB_TERMINAL_STATUSES = ['CONCLUIDO', 'FALHADO', 'CANCELADO'];
 
@@ -71,9 +72,13 @@ export default async function PedidoDetailPage({ params }: { params: { id: strin
               <p style={{ fontWeight: 600 }}>{order.price ? `R$ ${Number(order.price).toFixed(2)}` : '—'}</p>
             </div>
             <div>
-              <p className="text-muted text-sm">Pagamento</p>
+              <p className="text-muted text-sm">Forma de Pagamento</p>
               <p>{order.payment_method || '—'}</p>
             </div>
+          </div>
+          <div className="flex items-center gap-2" style={{ marginTop: 'var(--space-4)' }}>
+            <StatusBadge status={order.payment_status ?? 'PENDENTE'} />
+            <PaymentStatusToggle orderId={order.id} status={(order.payment_status as 'PAGO' | 'PENDENTE') ?? 'PENDENTE'} />
           </div>
           {order.notes && (
             <div style={{ marginTop: 'var(--space-4)' }}>

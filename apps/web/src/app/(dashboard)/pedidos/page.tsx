@@ -78,6 +78,11 @@ export default async function PedidosPage() {
             label: 'Status',
             render: (val) => <StatusBadge status={val as string} />,
           },
+          {
+            key: 'payment_status',
+            label: 'Pagamento',
+            render: (val) => <StatusBadge status={(val as string) ?? 'PENDENTE'} />,
+          },
         ]}
         actions={(row) => (
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
