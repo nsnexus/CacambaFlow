@@ -508,10 +508,16 @@ export async function getAvailableAssetsForDate(deliveryDate: string, returnDate
   });
 
   const withTypes = await Promise.all(available.map(async (a) => {
-    let asset_types = null;
+    // Só os campos que a UI usa — o resto do doc (ex: created_at, um
+    // Timestamp do Firestore) não pode atravessar a borda de Server Action
+    // pro Client Component ("Only plain objects... can be passed").
+    let asset_types: { name: string; volume_m3: number } | null = null;
     if (a.asset_type_id) {
       const typeDoc = await adminDb.collection('asset_types').doc(a.asset_type_id).get();
-      if (typeDoc.exists) asset_types = typeDoc.data();
+      if (typeDoc.exists) {
+        const t = typeDoc.data() as any;
+        asset_types = { name: t.name ?? '', volume_m3: t.volume_m3 ?? null };
+      }
     }
     return {
       id: a.id,
@@ -540,16 +546,25 @@ export async function getActiveRentalsForCustomer(customerId: string) {
   return Promise.all(snapshot.docs.map(async doc => {
     const assetData = doc.data() as any;
 
-    let asset_types = null;
+    // Só os campos que a UI usa — retorno de Server Action chamada direto de
+    // Client Component não aceita Timestamp do Firestore no meio (ex:
+    // created_at), trava com "Only plain objects... can be passed".
+    let asset_types: { name: string; volume_m3: number } | null = null;
     if (assetData.asset_type_id) {
       const typeDoc = await adminDb.collection('asset_types').doc(assetData.asset_type_id).get();
-      if (typeDoc.exists) asset_types = typeDoc.data();
+      if (typeDoc.exists) {
+        const t = typeDoc.data() as any;
+        asset_types = { name: t.name ?? '', volume_m3: t.volume_m3 ?? null };
+      }
     }
 
-    let address = null;
+    let address: { name: string; street: string; number: string } | null = null;
     if (assetData.address_id) {
       const addrDoc = await adminDb.collection('customers').doc(customerId).collection('addresses').doc(assetData.address_id).get();
-      if (addrDoc.exists) address = addrDoc.data();
+      if (addrDoc.exists) {
+        const a = addrDoc.data() as any;
+        address = { name: a.name ?? '', street: a.street ?? '', number: a.number ?? '' };
+      }
     }
 
     return {

@@ -41,6 +41,7 @@ type JobRow = {
   assetId: string;
   availableAssets: AvailableAsset[];
   loadingAssets: boolean;
+  loadError: boolean;
 };
 
 export function OrderForm({
@@ -58,7 +59,7 @@ export function OrderForm({
 
   // Lista dinâmica de atendimentos dentro do formulário
   const [jobs, setJobs] = useState<JobRow[]>([
-    { id: 1, scheduledDate: '', returnDate: '', assetId: '', availableAssets: [], loadingAssets: false },
+    { id: 1, scheduledDate: '', returnDate: '', assetId: '', availableAssets: [], loadingAssets: false, loadError: false },
   ]);
 
   // Busca as caçambas específicas realmente livres pra janela [entrega,
@@ -66,10 +67,10 @@ export function OrderForm({
   // preenchidas — se o pedido é pra amanhã, só mostra as que estarão livres
   // amanhã (considerando locações em andamento e reservas de outros pedidos).
   function refreshAvailableAssets(jobId: number, scheduledDate: string, returnDate: string) {
-    setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, loadingAssets: !!(scheduledDate && returnDate) } : j)));
+    setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, loadingAssets: !!(scheduledDate && returnDate), loadError: false } : j)));
 
     if (!scheduledDate || !returnDate) {
-      setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, availableAssets: [], assetId: '', loadingAssets: false } : j)));
+      setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, availableAssets: [], assetId: '', loadingAssets: false, loadError: false } : j)));
       return;
     }
 
@@ -84,11 +85,16 @@ export function OrderForm({
             availableAssets: assets as AvailableAsset[],
             assetId: stillAvailable ? j.assetId : '',
             loadingAssets: false,
+            loadError: false,
           };
         }));
       })
-      .catch(() => {
-        setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, availableAssets: [], loadingAssets: false } : j)));
+      .catch((error) => {
+        // Não mascara como "nenhuma disponível" — isso já confundiu um
+        // admin achando que não tinha caçamba livre quando na real a busca
+        // tinha quebrado (ex: erro de serialização no servidor).
+        console.error('[OrderForm] falha ao verificar caçambas disponíveis:', error);
+        setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, availableAssets: [], loadingAssets: false, loadError: true } : j)));
       });
   }
 
@@ -255,7 +261,7 @@ export function OrderForm({
           <button
             type="button"
             className="btn btn--secondary btn--sm"
-            onClick={() => setJobs([...jobs, { id: Date.now(), scheduledDate: '', returnDate: '', assetId: '', availableAssets: [], loadingAssets: false }])}
+            onClick={() => setJobs([...jobs, { id: Date.now(), scheduledDate: '', returnDate: '', assetId: '', availableAssets: [], loadingAssets: false, loadError: false }])}
           >
             + Adicionar Serviço
           </button>
@@ -304,9 +310,11 @@ export function OrderForm({
                       ? 'Preencha as datas primeiro...'
                       : job.loadingAssets
                         ? 'Verificando disponibilidade...'
-                        : job.availableAssets.length === 0
-                          ? 'Nenhuma caçamba livre nessas datas'
-                          : 'Selecione a caçamba...'}
+                        : job.loadError
+                          ? 'Erro ao verificar disponibilidade'
+                          : job.availableAssets.length === 0
+                            ? 'Nenhuma caçamba livre nessas datas'
+                            : 'Selecione a caçamba...'}
                   </option>
                   {job.availableAssets.map((a) => (
                     <option key={a.id} value={a.id}>
@@ -314,7 +322,12 @@ export function OrderForm({
                     </option>
                   ))}
                 </select>
-                {job.scheduledDate && job.returnDate && !job.loadingAssets && job.availableAssets.length === 0 && (
+                {job.scheduledDate && job.returnDate && !job.loadingAssets && job.loadError && (
+                  <p className="form-error">
+                    Não consegui verificar a disponibilidade agora (erro no servidor). Tente trocar a data de novo — se persistir, avise o suporte.
+                  </p>
+                )}
+                {job.scheduledDate && job.returnDate && !job.loadingAssets && !job.loadError && job.availableAssets.length === 0 && (
                   <p className="form-error">Nenhuma caçamba está livre nesse período — tente outras datas.</p>
                 )}
               </div>
