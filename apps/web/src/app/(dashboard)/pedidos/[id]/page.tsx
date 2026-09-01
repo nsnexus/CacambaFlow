@@ -5,6 +5,9 @@ import { getOrderById, deleteOrder } from '@/app/actions/orders';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DataTable } from '@/components/ui/data-table';
 import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
+import { CompleteJobButton } from '@/components/orders/complete-job-button';
+
+const JOB_TERMINAL_STATUSES = ['CONCLUIDO', 'FALHADO', 'CANCELADO'];
 
 export const metadata: Metadata = { title: 'Detalhes do Pedido — CaçambaFlow' };
 
@@ -114,6 +117,17 @@ export default async function PedidoDetailPage({ params }: { params: { id: strin
             render: (val) => <StatusBadge status={val as string} />,
           },
         ]}
+        actions={(row) => (
+          JOB_TERMINAL_STATUSES.includes(row.status as string) ? null : (
+            <CompleteJobButton
+              orderId={order.id}
+              jobId={row.id as string}
+              jobNumber={row.job_number as string}
+              defaultLatitude={order.addresses?.latitude ?? null}
+              defaultLongitude={order.addresses?.longitude ?? null}
+            />
+          )
+        )}
       />
     </div>
   );

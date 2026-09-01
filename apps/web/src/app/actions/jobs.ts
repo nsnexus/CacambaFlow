@@ -143,9 +143,101 @@ export async function unassignJob(orderId: string, jobId: string) {
 
 export async function cancelJob(orderId: string, jobId: string) {
   await requireUserAndTenant();
-  
+
   const jobRef = adminDb.collection('orders').doc(orderId).collection('jobs').doc(jobId);
   await jobRef.update({ status: 'CANCELADO' });
-  
+
   revalidatePath('/atendimentos');
+}
+
+// Só entrega e troca deixam uma caçamba nova em campo — mesma regra usada no
+// app do motorista (ver apps/mobile/src/app/job/[id].tsx).
+const JOB_TYPES_NEED_ASSET = ['ENTREGA', 'TROCA'];
+
+// Fecha um atendimento direto pelo painel, sem depender do app do motorista
+// (útil quando o app falha, o motorista não tem o celular à mão, etc.).
+// Espelha exatamente o que o app faz ao concluir: marca o job como CONCLUIDO
+// e atualiza a caçamba (entrega → LOCADA no endereço do pedido; coleta →
+// DISPONIVEL de novo). O local da entrega é o que o admin informar aqui
+// (por padrão, pré-preenchido com as coordenadas já cadastradas do endereço).
+export async function completeJobManually(
+  orderId: string,
+  jobId: string,
+  formData: FormData
+): Promise<{ message?: string }> {
+  const { tenantId, profileId } = await requireUserAndTenant();
+
+  const jobRef = adminDb.collection('orders').doc(orderId).collection('jobs').doc(jobId);
+  const jobSnap = await jobRef.get();
+  if (!jobSnap.exists) return { message: 'Atendimento não encontrado.' };
+
+  const job = jobSnap.data() as any;
+  if (job.tenant_id !== tenantId) return { message: 'Sem permissão pra concluir esse atendimento.' };
+  if (['CONCLUIDO', 'CANCELADO'].includes(job.status)) {
+    return { message: 'Esse atendimento já está encerrado.' };
+  }
+
+  const orderSnap = await adminDb.collection('orders').doc(orderId).get();
+  const order = orderSnap.data() as any;
+
+  const latRaw = (formData.get('delivery_latitude') as string) || '';
+  const lngRaw = (formData.get('delivery_longitude') as string) || '';
+  const note = ((formData.get('note') as string) || '').trim();
+  const latitude = latRaw ? Number(latRaw) : null;
+  const longitude = lngRaw ? Number(lngRaw) : null;
+
+  const now = new Date().toISOString();
+
+  try {
+    await jobRef.update({
+      status: 'CONCLUIDO',
+      updated_at: now,
+      completed_manually: true,
+      completed_manually_by: profileId,
+      completed_manually_note: note || null,
+    });
+
+    const assetId = job.assigned_asset_id || job.expected_asset_id || null;
+
+    if (JOB_TYPES_NEED_ASSET.includes(job.job_type) && assetId && order?.customer_id && order?.address_id) {
+      await adminDb.collection('assets').doc(assetId).update({
+        status: 'LOCADA',
+        customer_id: order.customer_id,
+        address_id: order.address_id,
+        delivered_at: now.split('T')[0],
+        delivery_latitude: latitude,
+        delivery_longitude: longitude,
+      });
+    } else if (job.job_type === 'COLETA' && order?.customer_id && order?.address_id) {
+      // Coleta não tem asset pré-vinculado — localiza a caçamba LOCADA nesse
+      // endereço, igual o app faz.
+      const assetsSnap = await adminDb.collection('assets')
+        .where('tenant_id', '==', tenantId)
+        .where('customer_id', '==', order.customer_id)
+        .where('address_id', '==', order.address_id)
+        .where('status', '==', 'LOCADA')
+        .limit(1)
+        .get();
+
+      const assetDoc = assetsSnap.docs[0];
+      if (assetDoc) {
+        await assetDoc.ref.update({
+          status: 'DISPONIVEL',
+          customer_id: null,
+          address_id: null,
+          delivered_at: null,
+          expected_return_date: null,
+          delivery_latitude: null,
+          delivery_longitude: null,
+        });
+      }
+    }
+  } catch (error: any) {
+    return { message: `Erro ao concluir manualmente: ${error.message}` };
+  }
+
+  revalidatePath(`/pedidos/${orderId}`);
+  revalidatePath('/pedidos');
+  revalidatePath('/atendimentos');
+  return {};
 }
