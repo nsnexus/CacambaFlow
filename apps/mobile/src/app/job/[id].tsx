@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   TextInput,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -47,7 +48,17 @@ type JobDetail = {
   addressLatitude: number | null;
   addressLongitude: number | null;
   expectedReturnDate: string | null;
+  customerPhone: string | null;
+  customerContactName: string | null;
 };
+
+// Telefone pode estar salvo só com DDD (11 dígitos) — o WhatsApp Web/app
+// precisa do código do país (Brasil = 55) na frente pra abrir a conversa.
+function toWhatsAppNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('55') && digits.length > 11) return digits;
+  return `55${digits}`;
+}
 
 const NEXT_STEP: Partial<Record<JobStatus, { label: string; next: JobStatus }>> = {
   ATRIBUIDO: { label: 'Iniciar rota', next: 'EM_ROTA' },
@@ -194,6 +205,10 @@ export default function JobDetailScreen() {
       let addressId: string | null = null;
       let addressLatitude: number | null = null;
       let addressLongitude: number | null = null;
+      // Prioriza o contato da obra (quem está no local) sobre o telefone
+      // geral do cliente — é quem o motorista realmente precisa achar lá.
+      let customerPhone: string | null = null;
+      let customerContactName: string | null = null;
 
       const orderSnap = await getDoc(doc(db, 'orders', orderId));
       if (orderSnap.exists()) {
@@ -203,7 +218,9 @@ export default function JobDetailScreen() {
         if (o.customer_id) {
           const custSnap = await getDoc(doc(db, 'customers', o.customer_id));
           if (custSnap.exists()) {
-            customerName = custSnap.data().name || '';
+            const cust = custSnap.data();
+            customerName = cust.name || '';
+            customerPhone = cust.phone || cust.whatsapp || null;
           }
           if (o.address_id) {
             const addrSnap = await getDoc(doc(db, `customers/${o.customer_id}/addresses`, o.address_id));
@@ -214,6 +231,10 @@ export default function JobDetailScreen() {
               accessNotes = a.access_notes || null;
               addressLatitude = a.latitude ?? null;
               addressLongitude = a.longitude ?? null;
+              if (a.contact_phone) {
+                customerPhone = a.contact_phone;
+                customerContactName = a.contact_name || null;
+              }
             }
           }
         }
@@ -235,6 +256,8 @@ export default function JobDetailScreen() {
         addressLatitude,
         addressLongitude,
         expectedReturnDate: jobData.expected_return_date || null,
+        customerPhone,
+        customerContactName,
       });
 
       // where('tenant_id', ...) obrigatório: as regras do Firestore exigem
@@ -454,6 +477,28 @@ export default function JobDetailScreen() {
         <Text style={styles.text}>📍 {job.address}</Text>
         <Text style={styles.textMuted}>{job.city}</Text>
         {job.accessNotes ? <Text style={styles.textMuted}>Obs. de acesso: {job.accessNotes}</Text> : null}
+
+        {job.customerPhone ? (
+          <>
+            <Text style={styles.text}>
+              📞 {job.customerContactName ? `${job.customerContactName} — ` : ''}{job.customerPhone}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+              <TouchableOpacity
+                style={[styles.navigateButton, { flex: 1 }]}
+                onPress={() => Linking.openURL(`tel:${job.customerPhone!.replace(/\D/g, '')}`)}
+              >
+                <Text style={styles.navigateButtonText}>📞 Ligar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.navigateButton, { flex: 1 }]}
+                onPress={() => Linking.openURL(`https://wa.me/${toWhatsAppNumber(job.customerPhone!)}`)}
+              >
+                <Text style={styles.navigateButtonText}>💬 WhatsApp</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : null}
 
         {job.address ? (
           <TouchableOpacity
