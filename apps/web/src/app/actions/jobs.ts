@@ -205,6 +205,7 @@ export async function completeJobManually(
         customer_id: order.customer_id,
         address_id: order.address_id,
         delivered_at: now.split('T')[0],
+        expected_return_date: job.expected_return_date ?? null,
         delivery_latitude: latitude,
         delivery_longitude: longitude,
       });

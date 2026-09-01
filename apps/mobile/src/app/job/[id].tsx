@@ -46,6 +46,7 @@ type JobDetail = {
   tenantId: string | null;
   addressLatitude: number | null;
   addressLongitude: number | null;
+  expectedReturnDate: string | null;
 };
 
 const NEXT_STEP: Partial<Record<JobStatus, { label: string; next: JobStatus }>> = {
@@ -233,6 +234,7 @@ export default function JobDetailScreen() {
         tenantId: jobData.tenant_id || null,
         addressLatitude,
         addressLongitude,
+        expectedReturnDate: jobData.expected_return_date || null,
       });
 
       // where('tenant_id', ...) obrigatório: as regras do Firestore exigem
@@ -300,6 +302,7 @@ export default function JobDetailScreen() {
               customer_id: job.customerId,
               address_id: job.addressId,
               delivered_at: new Date().toISOString().split('T')[0],
+              expected_return_date: job.expectedReturnDate ?? null,
               delivery_latitude: loc.coords.latitude,
               delivery_longitude: loc.coords.longitude,
             });

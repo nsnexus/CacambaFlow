@@ -306,6 +306,10 @@ export async function createOrder(
         job_type: 'ENTREGA',
         status: 'PENDENTE',
         scheduled_date: job.scheduled_date,
+        // Guarda também na própria entrega (não só na coleta) — é o que o
+        // app do motorista e a conclusão manual usam pra gravar a previsão
+        // de coleta na caçamba quando a entrega é concluída.
+        expected_return_date: job.expected_return_date,
         expected_asset_id: job.expected_asset_id,
         priority: job.priority,
         sequence_number: sequence,
