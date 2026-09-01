@@ -2,11 +2,24 @@ import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Updates from 'expo-updates';
 import { auth, db } from '../../lib/firebase';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { theme } from '../../constants/theme';
 import { stopLocationTracking } from '../../services/location';
+
+// Diagnóstico de atualização — mostra qual pacote OTA (expo-updates) está
+// rodando de verdade, pra não ter dúvida se um APK antigo (sem a
+// configuração de auto-atualização) tá instalado ou se a última atualização
+// pegou. Se sumir/mudar depois de fechar e abrir o app, é sinal de que
+// atualizou; se ficar sempre "não configurado", o APK instalado é anterior à
+// função de auto-atualização e precisa reinstalar uma vez.
+function otaDiagnosticLabel(): string {
+  if (!Updates.isEnabled) return 'OTA: não configurado (build antigo ou modo dev)';
+  const shortId = Updates.updateId ? Updates.updateId.slice(0, 8) : 'embutido';
+  return `OTA: ${Updates.channel ?? '—'} · ${shortId}`;
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -101,6 +114,7 @@ export default function ProfileScreen() {
       </View>
 
       <Text style={styles.version}>Versão 1.0.0 (Beta)</Text>
+      <Text style={styles.version}>{otaDiagnosticLabel()}</Text>
     </View>
   );
 }
