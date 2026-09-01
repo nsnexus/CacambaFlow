@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const items = [
   { href: '/configuracoes/motivos-falha', label: 'Motivos de Falha' },
   { href: '/configuracoes/tipos-cacamba', label: 'Tipos de Caçamba' },
+  { href: '/configuracoes/app-motorista', label: 'App do Motorista' },
 ];
 
 export function SettingsNav() {

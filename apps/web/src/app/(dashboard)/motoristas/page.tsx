@@ -6,12 +6,15 @@ import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
 import { IconLinkButton } from '@/components/ui/icon-link-button';
-import { ANDROID_APK_URL } from '@/lib/mobile-app';
+import { getMobileAppDownloadUrl } from '@/app/actions/mobile-app-settings';
 
 export const metadata: Metadata = { title: 'Motoristas — CaçambaFlow' };
 
 export default async function MotoristasPage() {
-  const drivers = await getDrivers();
+  const [drivers, appDownloadUrl] = await Promise.all([
+    getDrivers(),
+    getMobileAppDownloadUrl(),
+  ]);
 
   const expiredWarning = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -31,15 +34,21 @@ export default async function MotoristasPage() {
           <p className="text-muted text-sm">{drivers.length} motorista(s) cadastrado(s)</p>
         </div>
         <div className="flex gap-2">
-          <Link
-            id="btn-baixar-app-motorista"
-            href={ANDROID_APK_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn--secondary"
-          >
-            <Smartphone size={16} /> Baixar App (Android)
-          </Link>
+          {appDownloadUrl ? (
+            <Link
+              id="btn-baixar-app-motorista"
+              href={appDownloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn--secondary"
+            >
+              <Smartphone size={16} /> Baixar App (Android)
+            </Link>
+          ) : (
+            <Link id="btn-baixar-app-motorista" href="/configuracoes/app-motorista" className="btn btn--secondary">
+              <Smartphone size={16} /> Configurar App do Motorista
+            </Link>
+          )}
           <Link id="btn-novo-motorista" href="/motoristas/novo" className="btn btn--primary">
             + Novo Motorista
           </Link>
