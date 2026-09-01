@@ -3,8 +3,11 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { theme } from '../constants/theme';
 import { ConnectionBadge } from '../components/ConnectionBadge';
+import { useOTAUpdates } from '../hooks/useOTAUpdates';
 
 export default function RootLayout() {
+  useOTAUpdates();
+
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
