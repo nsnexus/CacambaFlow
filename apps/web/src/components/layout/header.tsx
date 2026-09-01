@@ -3,6 +3,8 @@
 import { auth } from '@/lib/firebase/client';
 import { clearSessionCookie } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { UserCircle } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 
 export function Header() {
@@ -21,6 +23,15 @@ export function Header() {
         {/* Breadcrumb ou título da página pode ser injetado aqui */}
       </div>
       <div className="header__right flex items-center gap-2">
+        <Link
+          id="header-minha-conta"
+          href="/minha-conta"
+          className="btn btn--secondary btn--sm"
+          aria-label="Minha conta"
+          title="Minha conta"
+        >
+          <UserCircle size={16} /> Minha Conta
+        </Link>
         <ThemeToggle />
         <button
           id="header-logout-btn"

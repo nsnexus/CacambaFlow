@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { createDriver, updateDriver, type DriverFormState } from '@/app/actions/drivers';
-import { Eye, EyeOff } from 'lucide-react';
+import { PasswordField } from '@/components/ui/password-field';
 import Link from 'next/link';
 
 function SubmitButton({ isEdit }: { isEdit: boolean }) {
@@ -18,42 +17,6 @@ function SubmitButton({ isEdit }: { isEdit: boolean }) {
     >
       {pending ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Salvar Motorista'}
     </button>
-  );
-}
-
-// Campo de senha com botão de mostrar/ocultar — pro admin conferir o que
-// digitou antes de repassar pro motorista.
-function PasswordField({ id, name, label, error }: { id: string; name: string; label: string; error?: string }) {
-  const [show, setShow] = useState(false);
-  return (
-    <div className="form-group">
-      <label className="label" htmlFor={id}>{label}</label>
-      <div style={{ position: 'relative' }}>
-        <input
-          id={id}
-          name={name}
-          type={show ? 'text' : 'password'}
-          className="input"
-          required
-          minLength={6}
-          placeholder="Mínimo 6 caracteres"
-          style={{ paddingRight: '40px' }}
-        />
-        <button
-          type="button"
-          onClick={() => setShow((s) => !s)}
-          aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}
-          style={{
-            position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
-            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)',
-            display: 'flex', alignItems: 'center',
-          }}
-        >
-          {show ? <EyeOff size={16} /> : <Eye size={16} />}
-        </button>
-      </div>
-      {error && <p className="form-error">{error}</p>}
-    </div>
   );
 }
 

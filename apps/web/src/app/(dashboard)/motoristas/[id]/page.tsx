@@ -6,6 +6,7 @@ import { getDriverById } from '@/app/actions/drivers';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DriverStatusToggle } from '@/components/drivers/driver-status-toggle';
+import { DriverPasswordForm } from '@/components/drivers/driver-password-form';
 import { IconLinkButton } from '@/components/ui/icon-link-button';
 
 export const metadata: Metadata = { title: 'Motorista — CaçambaFlow' };
@@ -70,6 +71,11 @@ export default async function MotoristaDetailPage({ params }: { params: { id: st
             </p>
           </div>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 'var(--space-6)', maxWidth: '560px' }}>
+        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: 'var(--space-4)' }}>Alterar Senha de Acesso</h2>
+        <DriverPasswordForm driverId={params.id} />
       </div>
 
       <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: 'var(--space-4)' }}>Últimos Atendimentos</h2>

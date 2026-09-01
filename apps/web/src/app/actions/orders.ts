@@ -20,14 +20,31 @@ const jobSchema = z.object({
   window_end: z.string().optional(),
 });
 
-// Zod schema para o pedido principal
+// Zod schema para o pedido principal — aceita um cliente já cadastrado
+// (customer_id + address_id) OU os dados de "pedido rápido" pra cliente
+// avulso, que nunca passou pela tela de Clientes (ver refine abaixo).
 const orderSchema = z.object({
-  customer_id: z.string().min(1, 'Selecione um cliente'),
-  address_id: z.string().min(1, 'Selecione um endereço'),
+  customer_id: z.string().optional().or(z.literal('')),
+  address_id: z.string().optional().or(z.literal('')),
+  quick_customer_name: z.string().optional().or(z.literal('')),
+  quick_customer_phone: z.string().optional().or(z.literal('')),
+  quick_address_street: z.string().optional().or(z.literal('')),
+  quick_address_number: z.string().optional().or(z.literal('')),
+  quick_address_district: z.string().optional().or(z.literal('')),
+  quick_address_city: z.string().optional().or(z.literal('')),
+  quick_address_state: z.string().optional().or(z.literal('')),
+  quick_address_access_notes: z.string().optional().or(z.literal('')),
   price: z.coerce.number().optional(),
   payment_method: z.string().optional(),
   notes: z.string().optional(),
   jobs: z.array(jobSchema).min(1, 'O pedido deve ter pelo menos um atendimento'),
+}).refine((data) => {
+  const hasExisting = !!data.customer_id && !!data.address_id;
+  const hasQuick = !!data.quick_customer_name && !!data.quick_address_street && !!data.quick_address_city && !!data.quick_address_state;
+  return hasExisting || hasQuick;
+}, {
+  message: 'Selecione um cliente cadastrado ou preencha os dados do pedido rápido.',
+  path: ['customer_id'],
 });
 
 export type OrderFormState = {
@@ -166,6 +183,14 @@ export async function createOrder(
   const rawData = {
     customer_id: formData.get('customer_id') as string,
     address_id: formData.get('address_id') as string,
+    quick_customer_name: formData.get('quick_customer_name') as string,
+    quick_customer_phone: formData.get('quick_customer_phone') as string,
+    quick_address_street: formData.get('quick_address_street') as string,
+    quick_address_number: formData.get('quick_address_number') as string,
+    quick_address_district: formData.get('quick_address_district') as string,
+    quick_address_city: formData.get('quick_address_city') as string,
+    quick_address_state: formData.get('quick_address_state') as string,
+    quick_address_access_notes: formData.get('quick_address_access_notes') as string,
     price: formData.get('price'),
     payment_method: formData.get('payment_method') as string,
     notes: formData.get('notes') as string,
@@ -192,11 +217,51 @@ export async function createOrder(
     // Usar Batch do Firestore para atomicidade (Transação simples)
     const batch = adminDb.batch();
 
+    // Pedido rápido: sem customer_id/address_id vindo do formulário — cria
+    // um cadastro simples de cliente + obra por baixo dos panos, no mesmo
+    // batch do pedido, pra cliente que só compra uma vez não precisar passar
+    // pela tela de Clientes antes.
+    let customerId = parsed.data.customer_id || '';
+    let addressId = parsed.data.address_id || '';
+
+    if (!customerId || !addressId) {
+      const customerRef = adminDb.collection('customers').doc();
+      batch.set(customerRef, {
+        tenant_id: sessionData.tenantId,
+        person_type: 'PF',
+        name: parsed.data.quick_customer_name,
+        document: null,
+        phone: parsed.data.quick_customer_phone || null,
+        whatsapp: null,
+        email: null,
+        notes: 'Cliente avulso — criado direto no pedido rápido.',
+        origin: 'PEDIDO_RAPIDO',
+        status: 'ATIVO',
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      customerId = customerRef.id;
+
+      const addressRef = customerRef.collection('addresses').doc();
+      batch.set(addressRef, {
+        tenant_id: sessionData.tenantId,
+        name: 'Obra',
+        street: parsed.data.quick_address_street,
+        number: parsed.data.quick_address_number || null,
+        district: parsed.data.quick_address_district || null,
+        city: parsed.data.quick_address_city,
+        state: (parsed.data.quick_address_state || '').toUpperCase(),
+        access_notes: parsed.data.quick_address_access_notes || null,
+        status: 'ATIVO',
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      addressId = addressRef.id;
+    }
+
     orderRef = adminDb.collection('orders').doc();
     batch.set(orderRef, {
       tenant_id: sessionData.tenantId,
-      customer_id: parsed.data.customer_id,
-      address_id: parsed.data.address_id,
+      customer_id: customerId,
+      address_id: addressId,
       order_number: orderNumber,
       scheduled_date: parsed.data.jobs[0]?.scheduled_date || null,
       price: parsed.data.price || null,

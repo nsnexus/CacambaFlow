@@ -51,6 +51,7 @@ export function OrderForm({
   addresses: Address[],
 }) {
   const [state, action] = useFormState<OrderFormState, FormData>(createOrder, {});
+  const [quickMode, setQuickMode] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [activeRentals, setActiveRentals] = useState<ActiveRental[]>([]);
   const [checkingRentals, setCheckingRentals] = useState(false);
@@ -137,37 +138,90 @@ export function OrderForm({
 
       {/* --- Seção 1: Cliente e Local --- */}
       <div className="form-section" style={{ marginBottom: 'var(--space-8)' }}>
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: 'var(--space-4)', paddingBottom: 'var(--space-2)', borderBottom: '1px solid var(--color-border)' }}>
-          1. Cliente e Local da Obra
-        </h2>
-        <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-          <div className="form-group">
-            <label className="label">Cliente *</label>
-            <select name="customer_id" className="input" required value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}>
-              <option value="">Selecione o cliente...</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id}>{c.name} {c.document ? `(${c.document})` : ''}</option>
-              ))}
-            </select>
-            {state.errors?.customer_id && <p className="form-error">{state.errors.customer_id[0]}</p>}
-          </div>
-
-          <div className="form-group">
-            <label className="label">Endereço da Obra *</label>
-            <select name="address_id" className="input" required disabled={!selectedCustomer}>
-              <option value="">Selecione a obra...</option>
-              {filteredAddresses.map(a => (
-                <option key={a.id} value={a.id}>{a.name} - {a.street}, {a.number}</option>
-              ))}
-            </select>
-            {state.errors?.address_id && <p className="form-error">{state.errors.address_id[0]}</p>}
-          </div>
+        <div className="flex items-center justify-between" style={{ marginBottom: 'var(--space-4)', paddingBottom: 'var(--space-2)', borderBottom: '1px solid var(--color-border)' }}>
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 600 }}>1. Cliente e Local da Obra</h2>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer', fontSize: '0.875rem' }}>
+            <input type="checkbox" checked={quickMode} onChange={(e) => setQuickMode(e.target.checked)} />
+            Pedido rápido (cliente avulso)
+          </label>
         </div>
 
-        {checkingRentals && (
+        {quickMode ? (
+          <>
+            <input type="hidden" name="customer_id" value="" />
+            <input type="hidden" name="address_id" value="" />
+            <p className="text-muted text-sm" style={{ marginBottom: 'var(--space-4)' }}>
+              Pra cliente que não volta (não precisa cadastrar antes) — só preenche o básico aqui e o pedido já sai. Um cadastro simples desse cliente e obra é criado por baixo, caso precise consultar depois.
+            </p>
+            <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+              <div className="form-group">
+                <label className="label">Nome do Cliente *</label>
+                <input name="quick_customer_name" type="text" className="input" required placeholder="Nome ou razão social" />
+                {state.errors?.quick_customer_name && <p className="form-error">{state.errors.quick_customer_name[0]}</p>}
+              </div>
+              <div className="form-group">
+                <label className="label">Telefone</label>
+                <input name="quick_customer_phone" type="tel" className="input" placeholder="(11) 99999-9999" />
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="label">Endereço da Obra *</label>
+                <input name="quick_address_street" type="text" className="input" required placeholder="Rua / Avenida" />
+                {state.errors?.quick_address_street && <p className="form-error">{state.errors.quick_address_street[0]}</p>}
+              </div>
+              <div className="form-group">
+                <label className="label">Número</label>
+                <input name="quick_address_number" type="text" className="input" placeholder="S/N" />
+              </div>
+              <div className="form-group">
+                <label className="label">Bairro</label>
+                <input name="quick_address_district" type="text" className="input" />
+              </div>
+              <div className="form-group">
+                <label className="label">Cidade *</label>
+                <input name="quick_address_city" type="text" className="input" required />
+                {state.errors?.quick_address_city && <p className="form-error">{state.errors.quick_address_city[0]}</p>}
+              </div>
+              <div className="form-group">
+                <label className="label">UF *</label>
+                <input name="quick_address_state" type="text" className="input" maxLength={2} required placeholder="SP" style={{ textTransform: 'uppercase' }} />
+                {state.errors?.quick_address_state && <p className="form-error">{state.errors.quick_address_state[0]}</p>}
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="label">Obs. de Acesso</label>
+                <input name="quick_address_access_notes" type="text" className="input" placeholder="Referência, restrição de acesso etc." />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+            <div className="form-group">
+              <label className="label">Cliente *</label>
+              <select name="customer_id" className="input" required value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)}>
+                <option value="">Selecione o cliente...</option>
+                {customers.map(c => (
+                  <option key={c.id} value={c.id}>{c.name} {c.document ? `(${c.document})` : ''}</option>
+                ))}
+              </select>
+              {state.errors?.customer_id && <p className="form-error">{state.errors.customer_id[0]}</p>}
+            </div>
+
+            <div className="form-group">
+              <label className="label">Endereço da Obra *</label>
+              <select name="address_id" className="input" required disabled={!selectedCustomer}>
+                <option value="">Selecione a obra...</option>
+                {filteredAddresses.map(a => (
+                  <option key={a.id} value={a.id}>{a.name} - {a.street}, {a.number}</option>
+                ))}
+              </select>
+              {state.errors?.address_id && <p className="form-error">{state.errors.address_id[0]}</p>}
+            </div>
+          </div>
+        )}
+
+        {!quickMode && checkingRentals && (
           <p className="text-muted text-sm" style={{ marginTop: 'var(--space-3)' }}>Verificando caçambas do cliente...</p>
         )}
-        {!checkingRentals && activeRentals.length > 0 && (
+        {!quickMode && !checkingRentals && activeRentals.length > 0 && (
           <div
             role="status"
             style={{

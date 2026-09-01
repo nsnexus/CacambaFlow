@@ -247,6 +247,60 @@ export async function updateDriverStatus(driverId: string, status: 'ATIVO' | 'IN
   revalidatePath('/motoristas');
 }
 
+const passwordChangeSchema = z.object({
+  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+  confirm_password: z.string().min(1, 'Confirme a senha'),
+}).refine((data) => data.password === data.confirm_password, {
+  message: 'As senhas não conferem.',
+  path: ['confirm_password'],
+});
+
+export type PasswordChangeFormState = {
+  errors?: Partial<Record<'password' | 'confirm_password', string[]>>;
+  message?: string;
+  success?: boolean;
+};
+
+// Admin troca a senha de acesso do motorista direto no painel — não precisa
+// mais gerar link nenhum. Só mexe no Firebase Auth (login), nada em
+// `drivers`/`profiles`.
+export async function updateDriverPassword(
+  driverId: string,
+  prevState: PasswordChangeFormState,
+  formData: FormData
+): Promise<PasswordChangeFormState> {
+  const parsed = passwordChangeSchema.safeParse({
+    password: formData.get('password') as string,
+    confirm_password: formData.get('confirm_password') as string,
+  });
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const { tenantId, role } = await requireUserAndTenant();
+  if (role === 'MOTORISTA') {
+    return { message: 'Sem permissão pra alterar essa senha.' };
+  }
+
+  const driverSnap = await adminDb.collection('drivers').doc(driverId).get();
+  if (!driverSnap.exists || driverSnap.data()?.tenant_id !== tenantId) {
+    return { message: 'Motorista não encontrado ou sem permissão.' };
+  }
+
+  const profileId = driverSnap.data()?.profile_id;
+  if (!profileId) {
+    return { message: 'Esse motorista não tem login vinculado.' };
+  }
+
+  try {
+    await adminAuth.updateUser(profileId, { password: parsed.data.password });
+  } catch (error: any) {
+    return { message: `Erro ao trocar a senha: ${error.message}` };
+  }
+
+  return { success: true };
+}
+
 // Remove o motorista da frota — apaga só o documento em `drivers`, não mexe
 // no login dele (profile/conta do Firebase Auth continuam existindo, então
 // dá pra recriar o vínculo depois se precisar). Atendimentos antigos ficam
