@@ -10,23 +10,34 @@ import * as admin from 'firebase-admin';
 const driverSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   email: z.string().email('E-mail inválido'),
+  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+  confirm_password: z.string().min(1, 'Confirme a senha'),
+  phone: z.string().optional(),
+  license_number: z.string().min(1, 'CNH obrigatória'),
+  license_category: z.string().min(1, 'Categoria obrigatória'),
+  license_expires_at: z.string().min(1, 'Validade da CNH obrigatória'),
+  tracking_enabled: z.boolean().default(true),
+}).refine((data) => data.password === data.confirm_password, {
+  message: 'As senhas não conferem.',
+  path: ['confirm_password'],
+});
+
+export type DriverFormState = {
+  errors?: Partial<Record<'name' | 'email' | 'password' | 'confirm_password' | 'phone' | 'license_number' | 'license_category' | 'license_expires_at' | 'tracking_enabled', string[]>>;
+  message?: string;
+  success?: boolean;
+};
+
+// Editar não mexe em e-mail/login (isso é do Firebase Auth, tratado à
+// parte) — só os dados próprios do motorista.
+const driverEditSchema = z.object({
+  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   phone: z.string().optional(),
   license_number: z.string().min(1, 'CNH obrigatória'),
   license_category: z.string().min(1, 'Categoria obrigatória'),
   license_expires_at: z.string().min(1, 'Validade da CNH obrigatória'),
   tracking_enabled: z.boolean().default(true),
 });
-
-export type DriverFormState = {
-  errors?: Partial<Record<keyof z.infer<typeof driverSchema>, string[]>>;
-  message?: string;
-  success?: boolean;
-  resetLink?: string;
-};
-
-// Editar não mexe em e-mail/login (isso é do Firebase Auth, tratado à
-// parte) — só os dados próprios do motorista.
-const driverEditSchema = driverSchema.omit({ email: true });
 
 // --- Listar motoristas ---
 export async function getDrivers() {
@@ -68,6 +79,8 @@ export async function createDriver(
   const rawData = {
     name: formData.get('name') as string,
     email: formData.get('email') as string,
+    password: formData.get('password') as string,
+    confirm_password: formData.get('confirm_password') as string,
     phone: formData.get('phone') as string,
     license_number: formData.get('license_number') as string,
     license_category: formData.get('license_category') as string,
@@ -77,7 +90,7 @@ export async function createDriver(
 
   const parsed = driverSchema.safeParse(rawData);
   if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors };
+    return { errors: parsed.error.flatten().fieldErrors as DriverFormState['errors'] };
   }
 
   let sessionData;
@@ -87,16 +100,13 @@ export async function createDriver(
     redirect('/login');
   }
 
-  // 1. Criar usuário no Firebase Auth
-  // Senha aleatória só pra satisfazer o campo obrigatório do Auth — ninguém
-  // usa ela de fato. O motorista define a própria senha pelo link de reset
-  // gerado abaixo (mais seguro que o admin repassar uma senha temporária).
-  const tempPassword = Math.random().toString(36).slice(-8) + 'A1!';
+  // 1. Criar usuário no Firebase Auth já com a senha que o admin definiu —
+  // ele mesmo entrega login e senha pro motorista (ex: por WhatsApp).
   let authUser;
   try {
     authUser = await adminAuth.createUser({
       email: parsed.data.email,
-      password: tempPassword,
+      password: parsed.data.password,
       displayName: parsed.data.name,
     });
   } catch (error: any) {
@@ -140,28 +150,8 @@ export async function createDriver(
     return { message: `Erro ao criar motorista: ${error.message}` };
   }
 
-  // 4. Link pra motorista definir a própria senha (Firebase Auth) — mostrado
-  // na tela pro admin copiar/mandar por WhatsApp, e enviado por e-mail em
-  // melhor esforço (o remetente de teste do Resend só entrega com certeza pro
-  // e-mail dono da conta, então o link na tela é o caminho garantido).
-  let resetLink = '';
-  try {
-    resetLink = await adminAuth.generatePasswordResetLink(parsed.data.email);
-  } catch (error: any) {
-    console.warn('[createDriver] não foi possível gerar o link de senha:', error.message);
-  }
-
-  if (resetLink) {
-    try {
-      const { sendDriverAccessEmail } = await import('@/lib/email');
-      await sendDriverAccessEmail(parsed.data.email, parsed.data.name, resetLink);
-    } catch (error: any) {
-      console.warn('[createDriver] e-mail de acesso não enviado:', error.message);
-    }
-  }
-
   revalidatePath('/motoristas');
-  return { success: true, resetLink };
+  redirect('/motoristas');
 }
 
 export async function updateDriver(

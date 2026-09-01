@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { createDriver, updateDriver, type DriverFormState } from '@/app/actions/drivers';
+import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 
 function SubmitButton({ isEdit }: { isEdit: boolean }) {
@@ -20,43 +21,38 @@ function SubmitButton({ isEdit }: { isEdit: boolean }) {
   );
 }
 
-function ResetLinkSuccess({ resetLink }: { resetLink: string }) {
-  const [copied, setCopied] = useState(false);
-
+// Campo de senha com botão de mostrar/ocultar — pro admin conferir o que
+// digitou antes de repassar pro motorista.
+function PasswordField({ id, name, label, error }: { id: string; name: string; label: string; error?: string }) {
+  const [show, setShow] = useState(false);
   return (
-    <div id="driver-created-success">
-      <div
-        role="status"
-        style={{
-          background: 'color-mix(in srgb, var(--color-success) 10%, transparent)',
-          border: '1px solid color-mix(in srgb, var(--color-success) 30%, transparent)',
-          borderRadius: 'var(--radius-md)',
-          padding: 'var(--space-4)',
-          marginBottom: 'var(--space-4)',
-        }}
-      >
-        <p style={{ fontWeight: 600, marginBottom: 'var(--space-2)' }}>✓ Motorista criado com sucesso!</p>
-        <p className="text-sm" style={{ marginBottom: 'var(--space-3)' }}>
-          Tentamos mandar um e-mail com o link de acesso, mas o mais garantido é você mesmo mandar esse link pro
-          motorista (WhatsApp, por exemplo) — clicando nele, ele define a própria senha:
-        </p>
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <input readOnly value={resetLink} className="input" style={{ fontSize: '0.75rem', fontFamily: 'monospace' }} onClick={(e) => e.currentTarget.select()} />
-          <button
-            type="button"
-            className="btn btn--secondary btn--sm"
-            style={{ whiteSpace: 'nowrap' }}
-            onClick={() => {
-              navigator.clipboard.writeText(resetLink);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }}
-          >
-            {copied ? 'Copiado!' : 'Copiar link'}
-          </button>
-        </div>
+    <div className="form-group">
+      <label className="label" htmlFor={id}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <input
+          id={id}
+          name={name}
+          type={show ? 'text' : 'password'}
+          className="input"
+          required
+          minLength={6}
+          placeholder="Mínimo 6 caracteres"
+          style={{ paddingRight: '40px' }}
+        />
+        <button
+          type="button"
+          onClick={() => setShow((s) => !s)}
+          aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}
+          style={{
+            position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)',
+            display: 'flex', alignItems: 'center',
+          }}
+        >
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
       </div>
-      <Link href="/motoristas" className="btn btn--primary btn--lg">Voltar para Motoristas</Link>
+      {error && <p className="form-error">{error}</p>}
     </div>
   );
 }
@@ -74,21 +70,6 @@ export function DriverForm({ driver }: { driver?: Driver }) {
   const isEdit = !!driver;
   const action = isEdit ? updateDriver.bind(null, driver.id) : createDriver;
   const [state, formAction] = useFormState<DriverFormState, FormData>(action, {});
-
-  if (state.success && state.resetLink) {
-    return <ResetLinkSuccess resetLink={state.resetLink} />;
-  }
-
-  if (state.success) {
-    return (
-      <div>
-        <p style={{ marginBottom: 'var(--space-4)' }}>
-          ✓ Motorista criado, mas não consegui gerar o link de acesso agora (falha temporária). Exclua e recadastre esse motorista pra tentar de novo, ou peça suporte técnico.
-        </p>
-        <Link href="/motoristas" className="btn btn--primary btn--lg">Voltar para Motoristas</Link>
-      </div>
-    );
-  }
 
   return (
     <form action={formAction} noValidate>
@@ -132,6 +113,12 @@ export function DriverForm({ driver }: { driver?: Driver }) {
             <label className="label" htmlFor="driver-phone">Telefone</label>
             <input id="driver-phone" name="phone" type="tel" className="input" defaultValue={driver?.profiles?.phone} placeholder="(11) 99999-9999" />
           </div>
+          {!isEdit && (
+            <>
+              <PasswordField id="driver-password" name="password" label="Senha de acesso *" error={state.errors?.password?.[0]} />
+              <PasswordField id="driver-confirm-password" name="confirm_password" label="Confirmar senha *" error={state.errors?.confirm_password?.[0]} />
+            </>
+          )}
         </div>
       </div>
 
