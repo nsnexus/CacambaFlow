@@ -20,20 +20,26 @@ const jobSchema = z.object({
   window_end: z.string().optional(),
 });
 
+// Os campos de "pedido rápido" só existem no DOM quando esse modo está
+// ligado no formulário — quando não estão, formData.get() devolve `null`
+// (não `''`), então o schema precisa aceitar null/undefined também, senão a
+// validação falha pro pedido normal (com cliente já cadastrado) também.
+const optionalText = z.preprocess((v) => (v === null || v === undefined ? '' : v), z.string());
+
 // Zod schema para o pedido principal — aceita um cliente já cadastrado
 // (customer_id + address_id) OU os dados de "pedido rápido" pra cliente
 // avulso, que nunca passou pela tela de Clientes (ver refine abaixo).
 const orderSchema = z.object({
-  customer_id: z.string().optional().or(z.literal('')),
-  address_id: z.string().optional().or(z.literal('')),
-  quick_customer_name: z.string().optional().or(z.literal('')),
-  quick_customer_phone: z.string().optional().or(z.literal('')),
-  quick_address_street: z.string().optional().or(z.literal('')),
-  quick_address_number: z.string().optional().or(z.literal('')),
-  quick_address_district: z.string().optional().or(z.literal('')),
-  quick_address_city: z.string().optional().or(z.literal('')),
-  quick_address_state: z.string().optional().or(z.literal('')),
-  quick_address_access_notes: z.string().optional().or(z.literal('')),
+  customer_id: optionalText,
+  address_id: optionalText,
+  quick_customer_name: optionalText,
+  quick_customer_phone: optionalText,
+  quick_address_street: optionalText,
+  quick_address_number: optionalText,
+  quick_address_district: optionalText,
+  quick_address_city: optionalText,
+  quick_address_state: optionalText,
+  quick_address_access_notes: optionalText,
   price: z.coerce.number().optional(),
   payment_method: z.string().optional(),
   notes: z.string().optional(),
