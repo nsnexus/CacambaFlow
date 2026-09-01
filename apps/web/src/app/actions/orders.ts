@@ -25,6 +25,9 @@ const jobSchema = z.object({
 // (não `''`), então o schema precisa aceitar null/undefined também, senão a
 // validação falha pro pedido normal (com cliente já cadastrado) também.
 const optionalText = z.preprocess((v) => (v === null || v === undefined ? '' : v), z.string());
+// Mesma ideia acima, mas pra número — string vazia/null/undefined vira
+// undefined em vez de quebrar o coerce.number().
+const optionalCoords = z.preprocess((v) => (v === '' || v === null || v === undefined ? undefined : v), z.coerce.number().optional());
 
 // Zod schema para o pedido principal — aceita um cliente já cadastrado
 // (customer_id + address_id) OU os dados de "pedido rápido" pra cliente
@@ -40,6 +43,9 @@ const orderSchema = z.object({
   quick_address_city: optionalText,
   quick_address_state: optionalText,
   quick_address_access_notes: optionalText,
+  quick_address_postal_code: optionalText,
+  quick_address_latitude: optionalCoords,
+  quick_address_longitude: optionalCoords,
   price: z.coerce.number().optional(),
   payment_method: z.string().optional(),
   notes: z.string().optional(),
@@ -197,6 +203,9 @@ export async function createOrder(
     quick_address_city: formData.get('quick_address_city') as string,
     quick_address_state: formData.get('quick_address_state') as string,
     quick_address_access_notes: formData.get('quick_address_access_notes') as string,
+    quick_address_postal_code: formData.get('quick_address_postal_code') as string,
+    quick_address_latitude: formData.get('quick_address_latitude'),
+    quick_address_longitude: formData.get('quick_address_longitude'),
     price: formData.get('price'),
     payment_method: formData.get('payment_method') as string,
     notes: formData.get('notes') as string,
@@ -251,11 +260,17 @@ export async function createOrder(
       batch.set(addressRef, {
         tenant_id: sessionData.tenantId,
         name: 'Obra',
+        postal_code: parsed.data.quick_address_postal_code || null,
         street: parsed.data.quick_address_street,
         number: parsed.data.quick_address_number || null,
         district: parsed.data.quick_address_district || null,
         city: parsed.data.quick_address_city,
         state: (parsed.data.quick_address_state || '').toUpperCase(),
+        // Vem da busca de endereço (Google Geocoding) quando o admin escolhe
+        // um resultado — sem isso, a caçamba não aparece certo no mapa e o
+        // app do motorista precisa geocodificar aproximado no aparelho.
+        latitude: parsed.data.quick_address_latitude ?? null,
+        longitude: parsed.data.quick_address_longitude ?? null,
         access_notes: parsed.data.quick_address_access_notes || null,
         status: 'ATIVO',
         created_at: admin.firestore.FieldValue.serverTimestamp(),

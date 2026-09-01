@@ -3,6 +3,7 @@
 import { useFormState, useFormStatus } from 'react-dom';
 import { createOrder, type OrderFormState } from '@/app/actions/orders';
 import { getActiveRentalsForCustomer, getAvailableAssetsForDate } from '@/app/actions/assets';
+import { AddressSearch, type AddressSearchResult } from '@/components/customers/address-search';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -53,6 +54,9 @@ export function OrderForm({
 }) {
   const [state, action] = useFormState<OrderFormState, FormData>(createOrder, {});
   const [quickMode, setQuickMode] = useState(false);
+  const [quickAddress, setQuickAddress] = useState({
+    street: '', number: '', district: '', city: '', state: '', postal_code: '', latitude: '', longitude: '',
+  });
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [activeRentals, setActiveRentals] = useState<ActiveRental[]>([]);
   const [checkingRentals, setCheckingRentals] = useState(false);
@@ -107,6 +111,23 @@ export function OrderForm({
     });
   }
 
+  function handlePickQuickAddress(r: AddressSearchResult) {
+    setQuickAddress({
+      street: r.street,
+      number: r.number,
+      district: r.district,
+      city: r.city,
+      state: r.state,
+      postal_code: r.postal_code,
+      latitude: String(r.latitude),
+      longitude: String(r.longitude),
+    });
+  }
+
+  function setQuickAddressField(key: keyof typeof quickAddress) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => setQuickAddress((f) => ({ ...f, [key]: e.target.value }));
+  }
+
   const filteredAddresses = addresses.filter(a => (a as any).customer_id === selectedCustomer);
 
   // Avisa (sem bloquear) quando o cliente selecionado já tem caçamba(s)
@@ -156,40 +177,49 @@ export function OrderForm({
           <>
             <input type="hidden" name="customer_id" value="" />
             <input type="hidden" name="address_id" value="" />
+            <input type="hidden" name="quick_address_postal_code" value={quickAddress.postal_code} />
+            <input type="hidden" name="quick_address_latitude" value={quickAddress.latitude} />
+            <input type="hidden" name="quick_address_longitude" value={quickAddress.longitude} />
             <p className="text-muted text-sm" style={{ marginBottom: 'var(--space-4)' }}>
               Pra cliente que não volta (não precisa cadastrar antes) — só preenche o básico aqui e o pedido já sai. Um cadastro simples desse cliente e obra é criado por baixo, caso precise consultar depois.
             </p>
+            <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+              <label className="label">Nome do Cliente *</label>
+              <input name="quick_customer_name" type="text" className="input" required placeholder="Nome ou razão social" style={{ maxWidth: '400px' }} />
+              {state.errors?.quick_customer_name && <p className="form-error">{state.errors.quick_customer_name[0]}</p>}
+            </div>
+            <div className="form-group" style={{ marginBottom: 'var(--space-4)', maxWidth: '400px' }}>
+              <label className="label">Telefone</label>
+              <input name="quick_customer_phone" type="tel" className="input" placeholder="(11) 99999-9999" />
+            </div>
+
+            <p className="label" style={{ marginBottom: 'var(--space-2)' }}>Endereço da Obra</p>
+            <AddressSearch onSelect={handlePickQuickAddress} />
+            <p className="text-muted text-xs" style={{ marginBottom: 'var(--space-3)' }}>
+              Escolha um resultado da busca pra preencher os campos abaixo (inclusive as coordenadas, pra aparecer certo no mapa e o motorista ser guiado até lá), ou preencha na mão — mas sem coordenada o app do motorista só chega aproximado.
+            </p>
             <div style={{ display: 'grid', gap: 'var(--space-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-              <div className="form-group">
-                <label className="label">Nome do Cliente *</label>
-                <input name="quick_customer_name" type="text" className="input" required placeholder="Nome ou razão social" />
-                {state.errors?.quick_customer_name && <p className="form-error">{state.errors.quick_customer_name[0]}</p>}
-              </div>
-              <div className="form-group">
-                <label className="label">Telefone</label>
-                <input name="quick_customer_phone" type="tel" className="input" placeholder="(11) 99999-9999" />
-              </div>
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <label className="label">Endereço da Obra *</label>
-                <input name="quick_address_street" type="text" className="input" required placeholder="Rua / Avenida" />
+                <label className="label">Logradouro *</label>
+                <input name="quick_address_street" type="text" className="input" required placeholder="Rua / Avenida" value={quickAddress.street} onChange={setQuickAddressField('street')} />
                 {state.errors?.quick_address_street && <p className="form-error">{state.errors.quick_address_street[0]}</p>}
               </div>
               <div className="form-group">
                 <label className="label">Número</label>
-                <input name="quick_address_number" type="text" className="input" placeholder="S/N" />
+                <input name="quick_address_number" type="text" className="input" placeholder="S/N" value={quickAddress.number} onChange={setQuickAddressField('number')} />
               </div>
               <div className="form-group">
                 <label className="label">Bairro</label>
-                <input name="quick_address_district" type="text" className="input" />
+                <input name="quick_address_district" type="text" className="input" value={quickAddress.district} onChange={setQuickAddressField('district')} />
               </div>
               <div className="form-group">
                 <label className="label">Cidade *</label>
-                <input name="quick_address_city" type="text" className="input" required />
+                <input name="quick_address_city" type="text" className="input" required value={quickAddress.city} onChange={setQuickAddressField('city')} />
                 {state.errors?.quick_address_city && <p className="form-error">{state.errors.quick_address_city[0]}</p>}
               </div>
               <div className="form-group">
                 <label className="label">UF *</label>
-                <input name="quick_address_state" type="text" className="input" maxLength={2} required placeholder="SP" style={{ textTransform: 'uppercase' }} />
+                <input name="quick_address_state" type="text" className="input" maxLength={2} required placeholder="SP" style={{ textTransform: 'uppercase' }} value={quickAddress.state} onChange={setQuickAddressField('state')} />
                 {state.errors?.quick_address_state && <p className="form-error">{state.errors.quick_address_state[0]}</p>}
               </div>
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
