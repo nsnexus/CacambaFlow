@@ -9,9 +9,6 @@ export type JobCardData = {
   job_type: string;
   status: JobStatus;
   scheduled_date: string;
-  // Só existe se o atendimento já foi empurrado de um dia atrasado pra hoje
-  // (ver migrateOverdueJobs no painel web) — guarda a data original prevista.
-  original_scheduled_date: string | null;
   orders: {
     customers: { name: string };
     addresses: { street: string; number: string; district: string; city: string; latitude: number | null; longitude: number | null };
@@ -100,7 +97,6 @@ export async function fetchDriverJobs(
         job_type: data.job_type,
         status: data.status,
         scheduled_date: data.scheduled_date,
-        original_scheduled_date: data.original_scheduled_date ?? null,
         orders,
       } as JobCardData;
     })

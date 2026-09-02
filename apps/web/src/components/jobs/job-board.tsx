@@ -34,6 +34,11 @@ export function JobBoard({ initialJobs, drivers, vehicles, assets }: JobBoardPro
     setJobs(initialJobs);
   }, [initialJobs]);
 
+  // Atendimento com data anterior a hoje e ainda não encerrado — o backend
+  // já traz ele junto no quadro de "hoje" (ver getJobsForDispatch), aqui só
+  // decide se mostra o aviso.
+  const today = new Date().toISOString().split('T')[0] ?? '';
+
   const pendentes = jobs.filter(j => j.status === 'PENDENTE' || j.status === 'REAGENDADO' || j.status === 'RASCUNHO');
   const atribuidos = jobs.filter(j => j.status === 'ATRIBUIDO');
   const emExecucao = jobs.filter(j => ['EM_ROTA', 'NO_LOCAL', 'EM_EXECUCAO', 'CONCLUIDO_LOCAL', 'SINCRONIZANDO'].includes(j.status));
@@ -83,7 +88,7 @@ export function JobBoard({ initialJobs, drivers, vehicles, assets }: JobBoardPro
         {job.orders.addresses.street}, {job.orders.addresses.number} - {job.orders.addresses.district}
       </div>
 
-      {job.original_scheduled_date && job.original_scheduled_date !== job.scheduled_date && (
+      {job.scheduled_date < today && !['CONCLUIDO', 'FALHADO', 'CANCELADO'].includes(job.status) && (
         <div
           className="text-xs"
           style={{
@@ -92,7 +97,7 @@ export function JobBoard({ initialJobs, drivers, vehicles, assets }: JobBoardPro
             marginBottom: 'var(--space-2)',
           }}
         >
-          ⚠️ Atrasado — previsto pra {new Date(`${job.original_scheduled_date}T00:00:00`).toLocaleDateString('pt-BR')}
+          ⚠️ Atrasado — previsto pra {new Date(`${job.scheduled_date}T00:00:00`).toLocaleDateString('pt-BR')}
         </div>
       )}
 

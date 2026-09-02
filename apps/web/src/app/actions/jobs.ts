@@ -5,62 +5,41 @@ import { revalidatePath } from 'next/cache';
 
 const TERMINAL_STATUSES = ['CONCLUIDO', 'FALHADO', 'CANCELADO'];
 
-// Empurra pra hoje qualquer atendimento (entrega ou coleta) que passou da
-// data e ainda não foi concluído/falhado/cancelado — sem isso ele ficava
-// preso na data antiga pra sempre, exigindo alguém reagendar na mão um por
-// um. Guarda a data original em original_scheduled_date (só na primeira
-// vez) pra sempre dar pra mostrar "atrasado desde X" mesmo depois de virar
-// "hoje" de novo. Roda toda vez que o painel de despacho é aberto — não
-// depende de nenhum job agendado (cron) rodando sozinho.
-async function migrateOverdueJobs(tenantId: string) {
-  const today = new Date().toISOString().split('T')[0];
-
-  // Só um campo em range (scheduled_date) — o filtro de status fica pro
-  // lado do JS, porque Firestore não deixa combinar 'in'/'not-in' com outra
-  // desigualdade numa query só.
-  const snapshot = await adminDb.collectionGroup('jobs')
-    .where('tenant_id', '==', tenantId)
-    .where('scheduled_date', '<', today)
-    .get();
-
-  const overdueDocs = snapshot.docs.filter((doc) => !TERMINAL_STATUSES.includes(doc.data().status));
-  if (overdueDocs.length === 0) return;
-
-  const batch = adminDb.batch();
-  overdueDocs.forEach((doc) => {
-    const data = doc.data();
-    const update: Record<string, unknown> = { scheduled_date: today, updated_at: new Date().toISOString() };
-    if (!data.original_scheduled_date) {
-      update.original_scheduled_date = data.scheduled_date;
-    }
-    batch.update(doc.ref, update);
-  });
-  await batch.commit();
-}
-
 export async function getJobsForDispatch(date?: string) {
   const { tenantId } = await requireUserAndTenant();
 
-  await migrateOverdueJobs(tenantId);
+  const today = new Date().toISOString().split('T')[0];
+  const targetDate = date || today;
 
   // jobs é subcoleção de orders (orders/{orderId}/jobs/{jobId}), por isso a
   // busca precisa ser um collectionGroup, não uma coleção de topo.
-  let jobsQuery = adminDb.collectionGroup('jobs')
+  const snapshot = await adminDb.collectionGroup('jobs')
     .where('tenant_id', '==', tenantId)
     .where('status', 'in', [
       'PENDENTE', 'REAGENDADO', 'RASCUNHO',
       'ATRIBUIDO',
       'EM_ROTA', 'NO_LOCAL', 'EM_EXECUCAO', 'CONCLUIDO_LOCAL', 'SINCRONIZANDO',
       'CONCLUIDO', 'FALHADO', 'ERRO_SYNC',
-    ]);
+    ])
+    .where('scheduled_date', '==', targetDate)
+    .get();
 
-  if (date) {
-    jobsQuery = jobsQuery.where('scheduled_date', '==', date);
+  let docs = snapshot.docs;
+
+  // Vendo o quadro de "hoje" (padrão da tela): traz junto o que ficou
+  // atrasado de dias anteriores e ainda não foi concluído/falhado/cancelado
+  // — sem precisar reagendar nada na mão, e sem mexer na scheduled_date
+  // real do atendimento (o atraso é só visual, calculado na hora).
+  if (targetDate === today) {
+    const overdueSnapshot = await adminDb.collectionGroup('jobs')
+      .where('tenant_id', '==', tenantId)
+      .where('scheduled_date', '<', today)
+      .get();
+    const overdueDocs = overdueSnapshot.docs.filter((doc) => !TERMINAL_STATUSES.includes(doc.data().status));
+    docs = [...overdueDocs, ...docs];
   }
 
-  const snapshot = await jobsQuery.get();
-
-  const jobs = await Promise.all(snapshot.docs.map(async doc => {
+  const jobs = await Promise.all(docs.map(async doc => {
     const data = doc.data();
     
     // Pegar order correspondente
