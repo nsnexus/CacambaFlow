@@ -38,39 +38,48 @@ const navItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/configuracoes', label: 'Configurações', icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar__brand">
-        <Image src="/logo-mark.png" alt="" width={22} height={22} className="sidebar__brand-icon" />
-        <span className="sidebar__brand-name">CaçambaFlow</span>
-      </div>
+    <>
+      {/* Fundo escurecido atrás da gaveta — só existe/aparece em mobile (ver CSS) */}
+      <div
+        className={`sidebar-backdrop ${mobileOpen ? 'sidebar-backdrop--visible' : ''}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-      <nav className="sidebar__nav" aria-label="Menu principal">
-        <ul role="list">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-            const Icon = item.icon;
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  id={`nav-${item.href.replace(/\//g, '').replace(/-/g, '_')}`}
-                  className={`sidebar__link ${isActive ? 'sidebar__link--active' : ''}`}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <Icon className="sidebar__link-icon" size={18} aria-hidden="true" />
-                  <span>{item.label}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <aside className={`sidebar ${mobileOpen ? 'sidebar--open' : ''}`}>
+        <div className="sidebar__brand">
+          <Image src="/logo-mark.png" alt="" width={22} height={22} className="sidebar__brand-icon" />
+          <span className="sidebar__brand-name">CaçambaFlow</span>
+        </div>
 
-      <style>{`
+        <nav className="sidebar__nav" aria-label="Menu principal">
+          <ul role="list">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+              const Icon = item.icon;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    id={`nav-${item.href.replace(/\//g, '').replace(/-/g, '_')}`}
+                    className={`sidebar__link ${isActive ? 'sidebar__link--active' : ''}`}
+                    aria-current={isActive ? 'page' : undefined}
+                    onClick={onClose}
+                  >
+                    <Icon className="sidebar__link-icon" size={18} aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <style>{`
         .sidebar {
           width: var(--sidebar-width);
           background: var(--color-surface);
@@ -115,7 +124,38 @@ export function Sidebar() {
           font-weight: 600;
         }
         .sidebar__link-icon { flex-shrink: 0; }
+
+        .sidebar-backdrop { display: none; }
+
+        @media (max-width: 768px) {
+          .sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            height: 100vh;
+            z-index: 200;
+            transform: translateX(-100%);
+            transition: transform var(--transition-base);
+            box-shadow: var(--shadow-lg);
+          }
+          .sidebar--open { transform: translateX(0); }
+
+          .sidebar-backdrop {
+            display: block;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 150;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition-base);
+          }
+          .sidebar-backdrop--visible {
+            opacity: 1;
+            pointer-events: auto;
+          }
+        }
       `}</style>
-    </aside>
+      </aside>
+    </>
   );
 }

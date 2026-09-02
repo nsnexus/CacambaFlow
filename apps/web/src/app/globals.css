@@ -310,3 +310,17 @@ a:hover { color: var(--color-primary-dark); }
   animation: shimmer 2s infinite;
   border-radius: var(--radius-sm);
 }
+
+/* --- Ajustes de mobile --- */
+@media (max-width: 640px) {
+  /* Cabeçalho de página (título + botões de ação) é sempre um
+     "flex justify-between" — em tela estreita os botões precisam quebrar
+     linha em vez de espremer ou vazar da tela. */
+  .justify-between {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+  .card { padding: var(--space-4); }
+  .table th, .table td { padding: var(--space-2) var(--space-3); font-size: 0.8125rem; }
+  h1 { font-size: 1.25rem !important; }
+}
