@@ -43,14 +43,20 @@ export function DataTable<T extends Record<string, unknown>>({
   }
 
   return (
-    <div className="table-container" style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+    // Nota: NÃO colocar overflow:hidden aqui (nem inline nem via classe) —
+    // isso anularia o overflow-x:auto do .table-container no globals.css e
+    // travaria o acesso a colunas fora da tela (ex: Ações) em telas
+    // estreitas, sem nem dar pra rolar pra ver. Cantos arredondados ficam
+    // por conta do border-radius do .table-container mesmo, sem precisar
+    // recortar o conteúdo.
+    <div className="table-container" style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)' }}>
       <table id={id} className="table">
         <thead>
           <tr>
             {columns.map((col) => (
               <th key={col.key}>{col.label}</th>
             ))}
-            {actions && <th>Ações</th>}
+            {actions && <th className="table-actions-cell">Ações</th>}
           </tr>
         </thead>
         <tbody>
@@ -63,7 +69,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     : String(row[col.key] ?? '—')}
                 </td>
               ))}
-              {actions && <td>{actions(row)}</td>}
+              {actions && <td className="table-actions-cell">{actions(row)}</td>}
             </tr>
           ))}
         </tbody>

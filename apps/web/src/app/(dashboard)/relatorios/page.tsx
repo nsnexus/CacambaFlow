@@ -70,7 +70,7 @@ export default async function RelatoriosPage({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 1fr) 2fr', gap: 'var(--space-6)', alignItems: 'start' }}>
+      <div className="reports-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 1fr) 2fr', gap: 'var(--space-6)', alignItems: 'start' }}>
         {/* Distribuição por status */}
         <div className="card">
           <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: 'var(--space-4)' }}>Atendimentos por Status</h2>

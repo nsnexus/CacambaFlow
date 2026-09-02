@@ -42,9 +42,9 @@ export function FleetControlView({ telemetry, assets }: { telemetry: TelemetryPo
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 'var(--space-4)', flex: 1, overflow: 'hidden' }}>
+      <div className="fleet-control-layout" style={{ display: 'flex', gap: 'var(--space-4)', flex: 1, overflow: 'hidden' }}>
         {/* Sidebar tática */}
-        <div style={{ width: '320px', background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflowY: 'auto', flexShrink: 0 }}>
+        <div className="fleet-control-sidebar" style={{ width: '320px', background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflowY: 'auto', flexShrink: 0 }}>
           {tab === 'motoristas' ? (
             <div style={{ padding: 'var(--space-2)' }}>
               {telemetry.length === 0 ? (
@@ -148,7 +148,7 @@ export function FleetControlView({ telemetry, assets }: { telemetry: TelemetryPo
         </div>
 
         {/* Área do Mapa Principal */}
-        <div style={{ flex: 1, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+        <div className="fleet-control-map" style={{ flex: 1, background: 'var(--color-surface-2)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
           <FleetMapLoader
             telemetry={tab === 'motoristas' ? telemetry : []}
             assets={tab === 'cacambas' ? assets : []}
@@ -157,6 +157,14 @@ export function FleetControlView({ telemetry, assets }: { telemetry: TelemetryPo
           />
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .fleet-control-layout { flex-direction: column; overflow: visible; }
+          .fleet-control-sidebar { width: 100% !important; max-height: 240px; }
+          .fleet-control-map { min-height: 50vh; order: -1; }
+        }
+      `}</style>
     </div>
   );
 }

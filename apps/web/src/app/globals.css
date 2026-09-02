@@ -299,6 +299,18 @@ a:hover { color: var(--color-primary-dark); }
 }
 .table tr:hover td { background: var(--color-surface-2); }
 
+/* Coluna de Ações fixa na borda direita ao rolar a tabela na horizontal —
+   sem isso, em telas estreitas (celular) ela ficava fora da área visível e
+   só dava pra ver rolando "às cegas"; agora fica sempre visível. */
+.table-actions-cell {
+  position: sticky;
+  right: 0;
+  background: var(--color-surface);
+  box-shadow: -6px 0 8px -6px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+.table tr:hover .table-actions-cell { background: var(--color-surface-2); }
+
 /* --- Loading skeleton --- */
 @keyframes shimmer {
   0% { background-position: -1000px 0; }
@@ -323,4 +335,5 @@ a:hover { color: var(--color-primary-dark); }
   .card { padding: var(--space-4); }
   .table th, .table td { padding: var(--space-2) var(--space-3); font-size: 0.8125rem; }
   h1 { font-size: 1.25rem !important; }
+  .reports-grid { grid-template-columns: 1fr !important; }
 }

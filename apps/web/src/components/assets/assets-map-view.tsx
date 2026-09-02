@@ -30,7 +30,7 @@ export function AssetsMapView({ assets }: { assets: DeliveredAsset[] }) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 'var(--space-6)', alignItems: 'start' }}>
+      <div className="assets-map-layout">
         <div className="table-container" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <table className="table">
             <thead>
@@ -87,10 +87,24 @@ export function AssetsMapView({ assets }: { assets: DeliveredAsset[] }) {
           </table>
         </div>
 
-        <div style={{ height: '70vh', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+        <div className="assets-map-pane" style={{ height: '70vh', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
           <AssetMapLoader assets={assets} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
       </div>
+
+      <style>{`
+        .assets-map-layout {
+          display: grid;
+          grid-template-columns: 1fr 1.2fr;
+          gap: var(--space-6);
+          align-items: start;
+        }
+        @media (max-width: 900px) {
+          .assets-map-layout { grid-template-columns: 1fr; }
+          /* Mapa primeiro (é o que o usuário quer ver grande), tabela embaixo */
+          .assets-map-pane { height: 60vh !important; order: -1; margin-bottom: var(--space-4); }
+        }
+      `}</style>
     </div>
   );
 }
