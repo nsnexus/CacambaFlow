@@ -32,6 +32,16 @@
       "collectionGroup": "jobs",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
+        { "fieldPath": "assigned_driver_id", "order": "ASCENDING" },
+        { "fieldPath": "tenant_id", "order": "ASCENDING" },
+        { "fieldPath": "scheduled_date", "order": "ASCENDING" },
+        { "fieldPath": "sequence_number", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "jobs",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
         { "fieldPath": "tenant_id", "order": "ASCENDING" },
         { "fieldPath": "assigned_driver_id", "order": "ASCENDING" },
         { "fieldPath": "scheduled_date", "order": "DESCENDING" }

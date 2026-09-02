@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, SectionList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { orderBy, where } from 'firebase/firestore';
@@ -7,9 +7,16 @@ import { theme } from '../../constants/theme';
 import type { JobStatus } from '@cacambaflow/types';
 import { getCurrentDriver, fetchDriverJobs, TERMINAL_STATUSES, type JobCardData } from '../../services/jobs';
 
+// Quantos dias pra frente de "próximas demandas" mostrar — assim o
+// motorista já sabe o que vem por aí (ex: entrega de amanhã) sem esperar o
+// dia virar pra descobrir na hora.
+const UPCOMING_DAYS_AHEAD = 7;
+
+type Section = { title: string; data: JobCardData[] };
+
 export default function HomeScreen() {
   const router = useRouter();
-  const [jobs, setJobs] = useState<JobCardData[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -21,15 +28,33 @@ export default function HomeScreen() {
         return;
       }
 
-      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const limitDate = new Date(now);
+      limitDate.setDate(limitDate.getDate() + UPCOMING_DAYS_AHEAD);
+      const limitDateStr = limitDate.toISOString().split('T')[0];
 
-      const jobsList = await fetchDriverJobs(driver.driverId, driver.tenantId, [
-        where('scheduled_date', '==', today),
-        orderBy('sequence_number', 'asc'),
+      const [todayJobs, upcomingJobsRaw] = await Promise.all([
+        fetchDriverJobs(driver.driverId, driver.tenantId, [
+          where('scheduled_date', '==', today),
+          orderBy('sequence_number', 'asc'),
+        ]),
+        fetchDriverJobs(driver.driverId, driver.tenantId, [
+          where('scheduled_date', '>', today),
+          where('scheduled_date', '<=', limitDateStr),
+          orderBy('scheduled_date', 'asc'),
+          orderBy('sequence_number', 'asc'),
+        ]),
       ]);
 
       // Corridas já concluídas/falhadas/canceladas saem daqui e vão para o Histórico.
-      setJobs(jobsList.filter((job) => !TERMINAL_STATUSES.includes(job.status)));
+      const todayActive = todayJobs.filter((job) => !TERMINAL_STATUSES.includes(job.status));
+      const upcomingActive = upcomingJobsRaw.filter((job) => !TERMINAL_STATUSES.includes(job.status));
+
+      const nextSections: Section[] = [];
+      if (todayActive.length > 0) nextSections.push({ title: 'Hoje', data: todayActive });
+      if (upcomingActive.length > 0) nextSections.push({ title: 'Próximos Dias', data: upcomingActive });
+      setSections(nextSections);
     } catch (error: any) {
       Alert.alert('Erro ao carregar rota', error.message);
     } finally {
@@ -62,7 +87,16 @@ export default function HomeScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: JobCardData }) => (
+  // Data por extenso curta (ex: "seg., 02/09") só nas seções que não são
+  // "Hoje" — dentro de "Hoje" já é óbvio que é hoje, não precisa repetir.
+  function formatScheduledDate(dateStr: string) {
+    const d = new Date(`${dateStr}T00:00:00`);
+    const weekday = d.toLocaleDateString('pt-BR', { weekday: 'short' });
+    const day = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    return `${weekday}, ${day}`;
+  }
+
+  const renderItem = ({ item, section }: { item: JobCardData; section: Section }) => (
     <TouchableOpacity
       style={styles.card}
       onPress={() => router.push({ pathname: '/job/[id]', params: { id: item.id, orderId: item.order_id } })}
@@ -73,6 +107,10 @@ export default function HomeScreen() {
           <Text style={styles.statusText}>{item.status}</Text>
         </View>
       </View>
+
+      {section.title !== 'Hoje' && (
+        <Text style={styles.scheduledDate}>📅 {formatScheduledDate(item.scheduled_date)}</Text>
+      )}
 
       <Text style={styles.jobType}>{item.job_type}</Text>
 
@@ -86,20 +124,26 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
+  const isEmpty = sections.length === 0;
+
   return (
     <View style={styles.container}>
-      {jobs.length === 0 && !loading ? (
+      {isEmpty && !loading ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>📭</Text>
           <Text style={styles.emptyTitle}>Sua rota está vazia</Text>
-          <Text style={styles.emptySub}>Nenhum serviço atribuído para hoje.</Text>
+          <Text style={styles.emptySub}>Nenhum serviço atribuído pra hoje nem pros próximos dias.</Text>
         </View>
       ) : (
-        <FlatList
-          data={jobs}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          renderSectionHeader={({ section }) => (
+            <Text style={styles.sectionHeader}>{section.title}</Text>
+          )}
           contentContainerStyle={styles.listContent}
+          stickySectionHeadersEnabled={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -120,6 +164,15 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: theme.spacing.md,
+  },
+  sectionHeader: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -149,6 +202,12 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  scheduledDate: {
+    color: theme.colors.warning,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: theme.spacing.xs,
   },
   jobType: {
     color: theme.colors.primaryLight,
