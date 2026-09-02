@@ -82,7 +82,20 @@ export function JobBoard({ initialJobs, drivers, vehicles, assets }: JobBoardPro
       <div className="text-muted text-xs" style={{ marginBottom: 'var(--space-3)' }}>
         {job.orders.addresses.street}, {job.orders.addresses.number} - {job.orders.addresses.district}
       </div>
-      
+
+      {job.original_scheduled_date && job.original_scheduled_date !== job.scheduled_date && (
+        <div
+          className="text-xs"
+          style={{
+            color: 'var(--color-danger)',
+            fontWeight: 600,
+            marginBottom: 'var(--space-2)',
+          }}
+        >
+          ⚠️ Atrasado — previsto pra {new Date(`${job.original_scheduled_date}T00:00:00`).toLocaleDateString('pt-BR')}
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '4px', marginBottom: 'var(--space-3)' }}>
         <span className="text-xs" style={{ background: 'var(--color-surface-2)', padding: '2px 6px', borderRadius: '4px' }}>
           {job.job_type}

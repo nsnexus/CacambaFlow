@@ -119,11 +119,16 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {section.title !== 'Hoje' && (
-        <Text style={[styles.scheduledDate, section.title === 'Atrasados' && styles.scheduledDateOverdue]}>
-          📅 {formatScheduledDate(item.scheduled_date)}
+      {item.original_scheduled_date && item.original_scheduled_date !== item.scheduled_date ? (
+        // Já foi empurrado de um dia atrasado pra hoje (ver migrateOverdueJobs
+        // no painel web) — mostra sempre esse aviso, mesmo dentro de "Hoje",
+        // pra não passar despercebido que já era pra ter sido feito antes.
+        <Text style={[styles.scheduledDate, styles.scheduledDateOverdue]}>
+          ⚠️ Atrasado — previsto pra {formatScheduledDate(item.original_scheduled_date)}
         </Text>
-      )}
+      ) : section.title !== 'Hoje' ? (
+        <Text style={styles.scheduledDate}>📅 {formatScheduledDate(item.scheduled_date)}</Text>
+      ) : null}
 
       <Text style={styles.jobType}>{item.job_type}</Text>
 

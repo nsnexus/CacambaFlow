@@ -3,8 +3,45 @@
 import { adminDb, requireUserAndTenant } from '@/lib/firebase/server';
 import { revalidatePath } from 'next/cache';
 
+const TERMINAL_STATUSES = ['CONCLUIDO', 'FALHADO', 'CANCELADO'];
+
+// Empurra pra hoje qualquer atendimento (entrega ou coleta) que passou da
+// data e ainda não foi concluído/falhado/cancelado — sem isso ele ficava
+// preso na data antiga pra sempre, exigindo alguém reagendar na mão um por
+// um. Guarda a data original em original_scheduled_date (só na primeira
+// vez) pra sempre dar pra mostrar "atrasado desde X" mesmo depois de virar
+// "hoje" de novo. Roda toda vez que o painel de despacho é aberto — não
+// depende de nenhum job agendado (cron) rodando sozinho.
+async function migrateOverdueJobs(tenantId: string) {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Só um campo em range (scheduled_date) — o filtro de status fica pro
+  // lado do JS, porque Firestore não deixa combinar 'in'/'not-in' com outra
+  // desigualdade numa query só.
+  const snapshot = await adminDb.collectionGroup('jobs')
+    .where('tenant_id', '==', tenantId)
+    .where('scheduled_date', '<', today)
+    .get();
+
+  const overdueDocs = snapshot.docs.filter((doc) => !TERMINAL_STATUSES.includes(doc.data().status));
+  if (overdueDocs.length === 0) return;
+
+  const batch = adminDb.batch();
+  overdueDocs.forEach((doc) => {
+    const data = doc.data();
+    const update: Record<string, unknown> = { scheduled_date: today, updated_at: new Date().toISOString() };
+    if (!data.original_scheduled_date) {
+      update.original_scheduled_date = data.scheduled_date;
+    }
+    batch.update(doc.ref, update);
+  });
+  await batch.commit();
+}
+
 export async function getJobsForDispatch(date?: string) {
   const { tenantId } = await requireUserAndTenant();
+
+  await migrateOverdueJobs(tenantId);
 
   // jobs é subcoleção de orders (orders/{orderId}/jobs/{jobId}), por isso a
   // busca precisa ser um collectionGroup, não uma coleção de topo.
