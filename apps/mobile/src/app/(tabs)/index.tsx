@@ -34,7 +34,16 @@ export default function HomeScreen() {
       limitDate.setDate(limitDate.getDate() + UPCOMING_DAYS_AHEAD);
       const limitDateStr = limitDate.toISOString().split('T')[0];
 
-      const [todayJobs, upcomingJobsRaw] = await Promise.all([
+      const [overdueJobsRaw, todayJobs, upcomingJobsRaw] = await Promise.all([
+        // Atendimento cujo dia já passou e ainda não foi concluído/falhado —
+        // sem isso ele simplesmente sumia do app quando o dia virava (não
+        // aparece em "Hoje" porque a data não bate mais, nem no Histórico
+        // porque nunca foi finalizado). Fica esquecido pro sempre.
+        fetchDriverJobs(driver.driverId, driver.tenantId, [
+          where('scheduled_date', '<', today),
+          orderBy('scheduled_date', 'asc'),
+          orderBy('sequence_number', 'asc'),
+        ]),
         fetchDriverJobs(driver.driverId, driver.tenantId, [
           where('scheduled_date', '==', today),
           orderBy('sequence_number', 'asc'),
@@ -48,10 +57,12 @@ export default function HomeScreen() {
       ]);
 
       // Corridas já concluídas/falhadas/canceladas saem daqui e vão para o Histórico.
+      const overdueActive = overdueJobsRaw.filter((job) => !TERMINAL_STATUSES.includes(job.status));
       const todayActive = todayJobs.filter((job) => !TERMINAL_STATUSES.includes(job.status));
       const upcomingActive = upcomingJobsRaw.filter((job) => !TERMINAL_STATUSES.includes(job.status));
 
       const nextSections: Section[] = [];
+      if (overdueActive.length > 0) nextSections.push({ title: 'Atrasados', data: overdueActive });
       if (todayActive.length > 0) nextSections.push({ title: 'Hoje', data: todayActive });
       if (upcomingActive.length > 0) nextSections.push({ title: 'Próximos Dias', data: upcomingActive });
       setSections(nextSections);
@@ -109,7 +120,9 @@ export default function HomeScreen() {
       </View>
 
       {section.title !== 'Hoje' && (
-        <Text style={styles.scheduledDate}>📅 {formatScheduledDate(item.scheduled_date)}</Text>
+        <Text style={[styles.scheduledDate, section.title === 'Atrasados' && styles.scheduledDateOverdue]}>
+          📅 {formatScheduledDate(item.scheduled_date)}
+        </Text>
       )}
 
       <Text style={styles.jobType}>{item.job_type}</Text>
@@ -140,7 +153,9 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           renderSectionHeader={({ section }) => (
-            <Text style={styles.sectionHeader}>{section.title}</Text>
+            <Text style={[styles.sectionHeader, section.title === 'Atrasados' && styles.sectionHeaderOverdue]}>
+              {section.title === 'Atrasados' ? `⚠️ ${section.title}` : section.title}
+            </Text>
           )}
           contentContainerStyle={styles.listContent}
           stickySectionHeadersEnabled={false}
@@ -173,6 +188,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.sm,
+  },
+  sectionHeaderOverdue: {
+    color: theme.colors.danger,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -208,6 +226,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginBottom: theme.spacing.xs,
+  },
+  scheduledDateOverdue: {
+    color: theme.colors.danger,
   },
   jobType: {
     color: theme.colors.primaryLight,
