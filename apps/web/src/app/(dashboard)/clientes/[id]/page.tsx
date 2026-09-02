@@ -76,11 +76,25 @@ export default async function ClienteDetailPage({ params }: { params: { id: stri
           },
           { key: 'access_notes', label: 'Restrições' },
           {
+            key: 'latitude',
+            label: 'Localização',
+            render: (val, row) => (
+              val && row.longitude ? (
+                <span className="text-xs" style={{ color: 'var(--color-success)' }}>✓ Tem coordenada</span>
+              ) : (
+                <span className="text-xs" style={{ color: 'var(--color-warning)', fontWeight: 600 }}>⚠️ Sem localização</span>
+              )
+            ),
+          },
+          {
             key: 'status',
             label: 'Status',
             render: (val) => <StatusBadge status={val as string} />,
           },
         ]}
+        actions={(row) => (
+          <IconLinkButton href={`/clientes/${params.id}/enderecos/${row.id}/editar`} icon={Pencil} label="Editar endereço" />
+        )}
       />
     </div>
   );

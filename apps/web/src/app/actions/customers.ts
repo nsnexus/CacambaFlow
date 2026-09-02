@@ -70,6 +70,22 @@ export async function getCustomerWithAddresses(customerId: string) {
   };
 }
 
+export async function getAddressById(customerId: string, addressId: string) {
+  const { tenantId } = await requireUserAndTenant();
+
+  const custDoc = await adminDb.collection('customers').doc(customerId).get();
+  if (!custDoc.exists || custDoc.data()?.tenant_id !== tenantId) throw new Error('Cliente não encontrado ou sem permissão.');
+
+  const addrDoc = await adminDb.collection('customers').doc(customerId).collection('addresses').doc(addressId).get();
+  if (!addrDoc.exists) throw new Error('Endereço não encontrado.');
+
+  return {
+    id: addrDoc.id,
+    customer_name: custDoc.data()?.name ?? '',
+    ...addrDoc.data(),
+  };
+}
+
 function parseCustomerForm(formData: FormData) {
   return customerSchema.safeParse({
     person_type: formData.get('person_type') as 'PF' | 'PJ',
@@ -144,11 +160,8 @@ export async function updateCustomer(
   redirect(`/clientes/${customerId}`);
 }
 
-export async function createAddress(
-  prevState: CustomerFormState,
-  formData: FormData
-): Promise<CustomerFormState> {
-  const rawData = {
+function parseAddressForm(formData: FormData) {
+  return addressSchema.safeParse({
     customer_id: formData.get('customer_id') as string,
     name: formData.get('name') as string,
     postal_code: formData.get('postal_code') as string,
@@ -163,9 +176,14 @@ export async function createAddress(
     access_notes: formData.get('access_notes') as string,
     contact_name: formData.get('contact_name') as string,
     contact_phone: formData.get('contact_phone') as string,
-  };
+  });
+}
 
-  const parsed = addressSchema.safeParse(rawData);
+export async function createAddress(
+  prevState: CustomerFormState,
+  formData: FormData
+): Promise<CustomerFormState> {
+  const parsed = parseAddressForm(formData);
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors };
   }
@@ -194,6 +212,47 @@ export async function createAddress(
 
   revalidatePath(`/clientes/${parsed.data.customer_id}`);
   redirect(`/clientes/${parsed.data.customer_id}`);
+}
+
+// Edita um endereço (obra) já cadastrado — é o jeito de corrigir endereço
+// errado num pedido já finalizado (a caçamba não aparece no mapa sem
+// coordenada, e o pedido não deixa escolher endereço de novo, então
+// consertar o próprio endereço é o caminho).
+export async function updateAddress(
+  customerId: string,
+  addressId: string,
+  prevState: CustomerFormState,
+  formData: FormData
+): Promise<CustomerFormState> {
+  const parsed = parseAddressForm(formData);
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const { tenantId } = await requireUserAndTenant();
+
+  const custSnap = await adminDb.collection('customers').doc(customerId).get();
+  if (!custSnap.exists || custSnap.data()?.tenant_id !== tenantId) {
+    return { message: 'Cliente não encontrado ou sem permissão.' };
+  }
+
+  const addrRef = adminDb.collection('customers').doc(customerId).collection('addresses').doc(addressId);
+  const addrSnap = await addrRef.get();
+  if (!addrSnap.exists) {
+    return { message: 'Endereço não encontrado.' };
+  }
+
+  try {
+    const { customer_id, ...addressData } = parsed.data;
+    await addrRef.update({ ...addressData });
+  } catch (error: any) {
+    return { message: `Erro ao atualizar endereço: ${error.message}` };
+  }
+
+  revalidatePath(`/clientes/${customerId}`);
+  revalidatePath('/cacambas/mapa');
+  revalidatePath('/pedidos');
+  redirect(`/clientes/${customerId}`);
 }
 
 // Apaga o cliente e os endereços (obras) dele — irreversível. Pedidos/caçambas

@@ -9,6 +9,8 @@ export type DeliveredAsset = {
   color?: string | null;
   delivered_at?: string | null;
   expected_return_date?: string | null;
+  customer_id?: string | null;
+  address_id?: string | null;
   asset_types?: { name: string; volume_m3: number } | null;
   customer?: { name: string } | null;
   address?: { name: string; street: string; number?: string; city: string; state: string; latitude?: number; longitude?: number } | null;

@@ -62,9 +62,21 @@ export function AssetsMapView({ assets }: { assets: DeliveredAsset[] }) {
                   <td>{formatDate(a.delivered_at)}</td>
                   <td>{formatDate(a.expected_return_date)}</td>
                   <td>
-                    <Link href={`/cacambas/${a.id}`} className="btn btn--secondary btn--sm" onClick={(e) => e.stopPropagation()}>
-                      Ver
-                    </Link>
+                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                      {!a.address?.latitude && a.customer_id && a.address_id && (
+                        <Link
+                          href={`/clientes/${a.customer_id}/enderecos/${a.address_id}/editar`}
+                          className="btn btn--secondary btn--sm"
+                          style={{ color: 'var(--color-warning)', whiteSpace: 'nowrap' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Corrigir endereço
+                        </Link>
+                      )}
+                      <Link href={`/cacambas/${a.id}`} className="btn btn--secondary btn--sm" onClick={(e) => e.stopPropagation()}>
+                        Ver
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Pencil } from 'lucide-react';
 import { getOrderById, deleteOrder } from '@/app/actions/orders';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { DataTable } from '@/components/ui/data-table';
 import { DeleteEntityButton } from '@/components/ui/delete-entity-button';
+import { IconLinkButton } from '@/components/ui/icon-link-button';
 import { CompleteJobButton } from '@/components/orders/complete-job-button';
 import { PaymentStatusToggle } from '@/components/orders/payment-status-toggle';
 
@@ -46,7 +48,10 @@ export default async function PedidoDetailPage({ params }: { params: { id: strin
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
         <div className="card">
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 'var(--space-4)' }}>Cliente e Local</h2>
+          <div className="flex items-center justify-between" style={{ marginBottom: 'var(--space-4)' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600 }}>Cliente e Local</h2>
+            <IconLinkButton href={`/clientes/${order.customers.id}/enderecos/${order.addresses.id}/editar`} icon={Pencil} label="Editar endereço" />
+          </div>
           <div style={{ marginBottom: 'var(--space-3)' }}>
             <p className="text-muted text-sm">Cliente</p>
             <p style={{ fontWeight: 500 }}>
@@ -62,6 +67,22 @@ export default async function PedidoDetailPage({ params }: { params: { id: strin
               <p className="text-xs text-muted" style={{ marginTop: '4px' }}>Obs de acesso: {order.addresses.access_notes}</p>
             )}
           </div>
+
+          {(!order.addresses.latitude || !order.addresses.longitude) && (
+            <div
+              role="alert"
+              style={{
+                marginTop: 'var(--space-4)',
+                padding: 'var(--space-3)',
+                background: 'color-mix(in srgb, var(--color-warning) 12%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.8125rem',
+              }}
+            >
+              ⚠️ Esse endereço não tem localização cadastrada — a caçamba entregue aqui não vai aparecer no Mapa de Caçambas. Clique no lápis acima pra corrigir (endereço errado costuma ser a causa).
+            </div>
+          )}
         </div>
 
         <div className="card">

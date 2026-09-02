@@ -2,15 +2,15 @@
 
 import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
-import { createAddress, type CustomerFormState } from '@/app/actions/customers';
+import { createAddress, updateAddress, type CustomerFormState } from '@/app/actions/customers';
 import { AddressSearch, type AddressSearchResult } from './address-search';
 import Link from 'next/link';
 
-function SubmitButton() {
+function SubmitButton({ isEdit }: { isEdit: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button id="btn-submit-endereco" type="submit" className="btn btn--primary btn--lg" disabled={pending}>
-      {pending ? 'Salvando...' : 'Salvar Obra'}
+      {pending ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Salvar Obra'}
     </button>
   );
 }
@@ -26,9 +26,41 @@ const emptyFields = {
   longitude: '',
 };
 
-export function AddressForm({ customerId }: { customerId: string }) {
-  const [state, action] = useFormState<CustomerFormState, FormData>(createAddress, {});
-  const [fields, setFields] = useState(emptyFields);
+type Address = {
+  id: string;
+  name?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  district?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  access_notes?: string;
+  contact_name?: string;
+  contact_phone?: string;
+};
+
+export function AddressForm({ customerId, address }: { customerId: string; address?: Address }) {
+  const isEdit = !!address;
+  const formAction = isEdit ? updateAddress.bind(null, customerId, address.id) : createAddress;
+  const [state, action] = useFormState<CustomerFormState, FormData>(formAction, {});
+  const [fields, setFields] = useState(
+    address
+      ? {
+          street: address.street ?? '',
+          number: address.number ?? '',
+          district: address.district ?? '',
+          city: address.city ?? '',
+          state: address.state ?? '',
+          postal_code: address.postal_code ?? '',
+          latitude: address.latitude != null ? String(address.latitude) : '',
+          longitude: address.longitude != null ? String(address.longitude) : '',
+        }
+      : emptyFields
+  );
 
   function handlePick(r: AddressSearchResult) {
     setFields({
@@ -65,6 +97,19 @@ export function AddressForm({ customerId }: { customerId: string }) {
         </div>
       )}
 
+      {isEdit && (!address?.latitude || !address?.longitude) && (
+        <div role="alert" style={{
+          background: 'color-mix(in srgb, var(--color-warning) 12%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--color-warning) 30%, transparent)',
+          borderRadius: 'var(--radius-md)',
+          padding: 'var(--space-3)',
+          marginBottom: 'var(--space-6)',
+          fontSize: '0.875rem',
+        }}>
+          ⚠️ Esse endereço não tem coordenadas cadastradas — a caçamba entregue aqui não aparece no Mapa de Caçambas. Busque o endereço abaixo pra preencher a localização.
+        </div>
+      )}
+
       <div className="form-section">
         <h2 className="form-section__title">Buscar Endereço</h2>
         <AddressSearch onSelect={handlePick} />
@@ -78,7 +123,7 @@ export function AddressForm({ customerId }: { customerId: string }) {
         <div className="form-grid">
           <div className="form-group">
             <label className="label" htmlFor="address-name">Nome da obra *</label>
-            <input id="address-name" name="name" type="text" className="input" required placeholder="Obra Rua das Flores" />
+            <input id="address-name" name="name" type="text" className="input" required placeholder="Obra Rua das Flores" defaultValue={address?.name} />
             {state.errors?.name && <p className="form-error">{state.errors.name[0]}</p>}
           </div>
           <div className="form-group">
@@ -102,7 +147,7 @@ export function AddressForm({ customerId }: { customerId: string }) {
           </div>
           <div className="form-group">
             <label className="label" htmlFor="address-complement">Complemento</label>
-            <input id="address-complement" name="complement" type="text" className="input" placeholder="Fundos, apto 2..." />
+            <input id="address-complement" name="complement" type="text" className="input" placeholder="Fundos, apto 2..." defaultValue={address?.complement} />
           </div>
           <div className="form-group">
             <label className="label" htmlFor="address-district">Bairro</label>
@@ -145,21 +190,21 @@ export function AddressForm({ customerId }: { customerId: string }) {
         <div className="form-grid">
           <div className="form-group">
             <label className="label" htmlFor="address-contact-name">Nome do contato</label>
-            <input id="address-contact-name" name="contact_name" type="text" className="input" placeholder="João (encarregado)" />
+            <input id="address-contact-name" name="contact_name" type="text" className="input" placeholder="João (encarregado)" defaultValue={address?.contact_name} />
           </div>
           <div className="form-group">
             <label className="label" htmlFor="address-contact-phone">Telefone do contato</label>
-            <input id="address-contact-phone" name="contact_phone" type="tel" className="input" placeholder="(11) 99999-9999" />
+            <input id="address-contact-phone" name="contact_phone" type="tel" className="input" placeholder="(11) 99999-9999" defaultValue={address?.contact_phone} />
           </div>
           <div className="form-group" style={{ gridColumn: '1 / -1' }}>
             <label className="label" htmlFor="address-access-notes">Restrições de acesso</label>
-            <textarea id="address-access-notes" name="access_notes" className="input" rows={3} placeholder="Ex: rua estreita, caminhão grande não entra, portão dos fundos..." />
+            <textarea id="address-access-notes" name="access_notes" className="input" rows={3} placeholder="Ex: rua estreita, caminhão grande não entra, portão dos fundos..." defaultValue={address?.access_notes} />
           </div>
         </div>
       </div>
 
       <div className="flex gap-4" style={{ marginTop: 'var(--space-6)' }}>
-        <SubmitButton />
+        <SubmitButton isEdit={isEdit} />
         <Link href={`/clientes/${customerId}`} className="btn btn--secondary btn--lg">Cancelar</Link>
       </div>
 
