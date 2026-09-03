@@ -240,6 +240,34 @@ export default function JobDetailScreen() {
         }
       }
 
+      // Coleta: o endereço cadastrado do cliente é só uma aproximação — a
+      // caçamba pode ter sido deixada num ponto específico do terreno, e o
+      // GPS capturado pelo motorista na entrega (delivery_latitude/longitude
+      // do próprio asset) é mais preciso pra guiar de volta até ela. Só
+      // sobrescreve se achar essa coordenada; senão fica no endereço mesmo.
+      if (jobData.job_type === 'COLETA' && customerId && addressId && jobData.tenant_id) {
+        try {
+          const assetsSnap = await getDocs(query(
+            collection(db, 'assets'),
+            where('tenant_id', '==', jobData.tenant_id),
+            where('customer_id', '==', customerId),
+            where('address_id', '==', addressId),
+            where('status', '==', 'LOCADA'),
+            limit(1)
+          ));
+          if (!assetsSnap.empty) {
+            const assetData = assetsSnap.docs[0].data();
+            if (assetData.delivery_latitude && assetData.delivery_longitude) {
+              addressLatitude = assetData.delivery_latitude;
+              addressLongitude = assetData.delivery_longitude;
+            }
+          }
+        } catch (e) {
+          // Sem essa coordenada não é bloqueante — só fica sem a trava de
+          // chegada mais precisa, cai no endereço cadastrado normalmente.
+        }
+      }
+
       setJob({
         id: jobSnap.id,
         job_number: jobData.job_number,
