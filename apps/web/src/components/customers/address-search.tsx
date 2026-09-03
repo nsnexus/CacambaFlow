@@ -8,13 +8,10 @@ export type AddressSearchResult = GeocodeResult;
 
 export function AddressSearch({ onSelect }: { onSelect: (result: AddressSearchResult) => void }) {
   const [query, setQuery] = useState('');
-  const [cep, setCep] = useState('');
   const [results, setResults] = useState<GeocodeResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [approximate, setApproximate] = useState(false);
-  const [cepLoading, setCepLoading] = useState(false);
-  const [cepError, setCepError] = useState('');
 
   // Mesmo com o Google Geocoding (cobertura bem melhor que o Nominatim usado
   // antes), uma busca digitada estranha ainda pode não achar nada. Em vez de
@@ -48,43 +45,6 @@ export function AddressSearch({ onSelect }: { onSelect: (result: AddressSearchRe
     }
   }
 
-  // CEP é dado oficial dos Correios (ViaCEP) — nome de rua/bairro/cidade sai
-  // certo mesmo em cidade pequena. Usa isso pra montar uma busca melhor em
-  // vez de depender só do que o usuário digitou de cabeça.
-  async function handleCepLookup(e: React.FormEvent) {
-    e.preventDefault();
-    const digits = cep.replace(/\D/g, '');
-    if (digits.length !== 8) {
-      setCepError('CEP deve ter 8 dígitos');
-      return;
-    }
-    setCepError('');
-    setCepLoading(true);
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
-      const data = await res.json();
-      if (data.erro) {
-        setCepError('CEP não encontrado');
-        return;
-      }
-      const composed = [data.logradouro, data.bairro, data.localidade && data.uf ? `${data.localidade} - ${data.uf}` : data.localidade]
-        .filter(Boolean)
-        .join(', ');
-      setQuery(composed);
-      setLoading(true);
-      setSearched(true);
-      try {
-        setResults(await searchWithFallback(composed));
-      } finally {
-        setLoading(false);
-      }
-    } catch {
-      setCepError('Não foi possível consultar o CEP agora');
-    } finally {
-      setCepLoading(false);
-    }
-  }
-
   function handlePick(r: GeocodeResult) {
     onSelect(r);
     setResults([]);
@@ -94,29 +54,12 @@ export function AddressSearch({ onSelect }: { onSelect: (result: AddressSearchRe
 
   return (
     <div style={{ marginBottom: 'var(--space-4)' }}>
-      <div className="flex gap-2" style={{ marginBottom: 'var(--space-2)' }}>
-        <input
-          id="address-cep-input"
-          type="text"
-          className="input"
-          placeholder="CEP (opcional — ajuda a achar endereço em cidade pequena)"
-          value={cep}
-          onChange={(e) => setCep(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleCepLookup(e); }}
-          style={{ maxWidth: '280px' }}
-        />
-        <button type="button" onClick={handleCepLookup} className="btn btn--secondary" disabled={cepLoading} style={{ whiteSpace: 'nowrap' }}>
-          {cepLoading ? 'Consultando...' : 'Buscar por CEP'}
-        </button>
-      </div>
-      {cepError && <p className="form-error" style={{ marginBottom: 'var(--space-2)' }}>{cepError}</p>}
-
       <div className="flex gap-2">
         <input
           id="address-search-input"
           type="text"
           className="input"
-          placeholder="Digite o endereço pra buscar (ex: Av. Paulista, 1000, São Paulo)"
+          placeholder="Rua, número, bairro, cidade - UF"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(e); }}
@@ -125,6 +68,9 @@ export function AddressSearch({ onSelect }: { onSelect: (result: AddressSearchRe
           {loading ? 'Buscando...' : <><Search size={16} /> Buscar</>}
         </button>
       </div>
+      <p className="text-muted text-xs" style={{ marginTop: 'var(--space-2)' }}>
+        💡 Pra achar certo, separe por vírgula: rua e número, bairro, cidade - UF. Ex: <em>Teotônio Vilela, 315, Liberdade, Parauapebas - PA</em>. Quanto mais completo, melhor o resultado — em cidade pequena, evite deixar só o nome da rua.
+      </p>
 
       {approximate && results.length > 0 && (
         <p className="text-muted text-xs" style={{ marginTop: 'var(--space-2)' }}>
