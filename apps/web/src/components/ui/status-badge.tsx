@@ -26,7 +26,7 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   // Caçambas
   DISPONIVEL:      { label: 'Disponível',   cls: 'badge--concluido' },
   RESERVADA:       { label: 'Reservada',    cls: 'badge--atribuido' },
-  EM_TRANSPORTE:   { label: 'Em Transporte',cls: 'badge--em-rota' },
+  EM_TRANSPORTE:   { label: 'Em Trânsito',  cls: 'badge--em-rota' },
   LOCADA:          { label: 'Locada',       cls: 'badge--no-local' },
   COLETA_PROGRAMADA: { label: 'Coleta Prog.',cls: 'badge--pendente' },
   EM_DESCARGA:     { label: 'Em Descarga',  cls: 'badge--em-execucao' },

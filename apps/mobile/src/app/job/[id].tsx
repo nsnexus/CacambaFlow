@@ -350,8 +350,12 @@ export default function JobDetailScreen() {
             ));
 
             if (!assetsSnap.empty) {
+              // Coletou no local, mas ainda não chegou no depósito — fica
+              // "Em Trânsito" até alguém confirmar a chegada pelo painel
+              // web, pra não virar disponível pra um novo pedido antes de
+              // fisicamente estar de volta no pátio.
               await updateDoc(assetsSnap.docs[0].ref, {
-                status: 'DISPONIVEL',
+                status: 'EM_TRANSPORTE',
                 customer_id: null,
                 address_id: null,
                 delivered_at: null,
@@ -521,6 +525,11 @@ export default function JobDetailScreen() {
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Evidências ({evidenceCount})</Text>
+        <Text style={[styles.textMuted, { marginBottom: theme.spacing.sm }]}>
+          {job.job_type === 'COLETA'
+            ? 'Obrigatório pra concluir — fotografe o estado da caçamba no momento da coleta (antes de levar pro lixão/depósito).'
+            : 'Obrigatório pra concluir o atendimento.'}
+        </Text>
         <TouchableOpacity
           style={[styles.secondaryButton, capturing && styles.buttonDisabled]}
           onPress={handleCapture}

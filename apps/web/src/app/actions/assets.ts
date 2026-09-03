@@ -276,7 +276,7 @@ export async function updateAsset(
   redirect(`/cacambas/${assetId}`);
 }
 
-export async function updateAssetStatus(assetId: string, status: 'DISPONIVEL' | 'LOCADA' | 'MANUTENCAO' | 'PERDIDA') {
+export async function updateAssetStatus(assetId: string, status: 'DISPONIVEL' | 'LOCADA' | 'EM_TRANSPORTE' | 'MANUTENCAO' | 'PERDIDA') {
   await requireUserAndTenant();
 
   await adminDb.collection('assets').doc(assetId).update({ status });

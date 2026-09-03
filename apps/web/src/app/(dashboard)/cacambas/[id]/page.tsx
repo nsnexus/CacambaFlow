@@ -52,7 +52,7 @@ export default async function CacambaDetailPage({ params }: { params: { id: stri
           <div><p className="label">Cor</p><p>{asset?.color ?? '—'}</p></div>
           <div>
             <p className="label">Localização Atual</p>
-            <p>{address ? `${address.name} — ${address.city}/${address.state}` : 'Pátio'}</p>
+            <p>{address ? `${address.name} — ${address.city}/${address.state}` : status === 'EM_TRANSPORTE' ? 'Em trânsito (voltando pro depósito)' : 'Pátio'}</p>
           </div>
           {status === 'LOCADA' && (
             <>

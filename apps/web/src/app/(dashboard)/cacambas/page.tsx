@@ -14,6 +14,7 @@ export default async function CacambasPage() {
 
   const disponíveis = assets.filter((a) => a.status === 'DISPONIVEL').length;
   const locadas = assets.filter((a) => a.status === 'LOCADA').length;
+  const emTransito = assets.filter((a) => a.status === 'EM_TRANSPORTE').length;
   const manutencao = assets.filter((a) => a.status === 'MANUTENCAO').length;
 
   return (
@@ -38,6 +39,7 @@ export default async function CacambasPage() {
         {[
           { id: 'stat-disponivel', label: 'Disponíveis', value: disponíveis, color: 'var(--color-success)' },
           { id: 'stat-locada', label: 'Locadas', value: locadas, color: 'var(--color-info)' },
+          { id: 'stat-transito', label: 'Em Trânsito', value: emTransito, color: 'var(--color-status-em-rota)' },
           { id: 'stat-manutencao', label: 'Manutenção', value: manutencao, color: 'var(--color-warning)' },
         ].map((s) => (
           <div
@@ -89,9 +91,10 @@ export default async function CacambasPage() {
           {
             key: 'addresses',
             label: 'Localização',
-            render: (val) => {
+            render: (val, row) => {
               const a = val as { name: string; city: string; state: string } | null;
-              return a ? `${a.name} — ${a.city}/${a.state}` : 'Pátio';
+              if (a) return `${a.name} — ${a.city}/${a.state}`;
+              return row.status === 'EM_TRANSPORTE' ? 'Em trânsito (voltando)' : 'Pátio';
             },
           },
         ]}

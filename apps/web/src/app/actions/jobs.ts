@@ -238,8 +238,12 @@ export async function completeJobManually(
 
       const assetDoc = assetsSnap.docs[0];
       if (assetDoc) {
+        // Coletou no local, mas ainda não chegou no depósito — fica "Em
+        // Trânsito" até alguém confirmar a chegada (dropdown de status na
+        // tela da caçamba), pra não ficar disponível pra um novo pedido
+        // antes de fisicamente estar no pátio.
         await assetDoc.ref.update({
-          status: 'DISPONIVEL',
+          status: 'EM_TRANSPORTE',
           customer_id: null,
           address_id: null,
           delivered_at: null,
